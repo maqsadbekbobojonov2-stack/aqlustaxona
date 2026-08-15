@@ -82,8 +82,9 @@ RUBRIC = os.getenv("RUBRIC", "").strip() or "Claude maslahatlar"
 MAX_REDO = _int("MAX_REDO", 5)
 DRY_RUN = os.getenv("DRY_RUN", "0").strip() == "1"
 
-CAPTION_LIMIT = 1024
-MIN_CHARS, MAX_CHARS = 500, 950
+CAPTION_LIMIT = 1024      # Telegram rasm captioni limiti
+MESSAGE_LIMIT = 4000      # Telegram oddiy xabar limiti
+MIN_CHARS, MAX_CHARS = 450, 850
 ALLOWED_TAGS = {"b", "i", "u", "s", "code", "pre", "a"}
 REDO_DATA = "redo"
 
@@ -382,24 +383,49 @@ def gem_json(prompt, search=False, temperature=0.9, attempts=3):
     raise RuntimeError(f"Gemini JSON qaytara olmadi ({attempts} urinish): {last}")
 
 
+IMAGE_MODEL_FALLBACKS = [
+    "gemini-2.5-flash-image",
+    "gemini-2.5-flash-image-preview",
+    "gemini-2.0-flash-preview-image-generation",
+]
+
+
 def gem_image(prompt, out_path):
+    """Rasm generatsiya qiladi. Bir necha model va sozlamani sinab ko'radi."""
     out_path = Path(out_path)
-    for cfg in ({"responseModalities": ["IMAGE"], "imageConfig": {"aspectRatio": "16:9"}},
-                {"responseModalities": ["TEXT", "IMAGE"]},
-                {}):
-        body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}]}
-        if cfg:
-            body["generationConfig"] = cfg
-        try:
-            resp = gem_post(GEMINI_IMAGE_MODEL, body)
-        except RuntimeError:
-            continue
-        for part in resp.get("candidates", [{}])[0].get("content", {}).get("parts", []):
-            inline = part.get("inlineData") or part.get("inline_data")
-            if inline and inline.get("data"):
-                out_path.write_bytes(base64.b64decode(inline["data"]))
-                return out_path
-    raise RuntimeError("Rasm generatsiya qilinmadi")
+    models = [GEMINI_IMAGE_MODEL] + [m for m in IMAGE_MODEL_FALLBACKS
+                                     if m != GEMINI_IMAGE_MODEL]
+    configs = [
+        {"responseModalities": ["IMAGE"], "imageConfig": {"aspectRatio": "16:9"}},
+        {"responseModalities": ["TEXT", "IMAGE"]},
+        {},
+    ]
+    errors = []
+    for model in models:
+        for cfg in configs:
+            body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}]}
+            if cfg:
+                body["generationConfig"] = cfg
+            try:
+                resp = gem_post(model, body)
+            except RuntimeError as e:
+                msg = str(e)[:180]
+                errors.append(f"{model}: {msg}")
+                # model umuman yo'q bo'lsa — qolgan sozlamalarni sinamaymiz
+                if "404" in msg or "not found" in msg.lower():
+                    break
+                continue
+            cand = (resp.get("candidates") or [{}])[0]
+            for part in cand.get("content", {}).get("parts", []):
+                inline = part.get("inlineData") or part.get("inline_data")
+                if inline and inline.get("data"):
+                    out_path.write_bytes(base64.b64decode(inline["data"]))
+                    print(f"[3-agent] Model: {model}")
+                    return out_path
+            errors.append(f"{model}: javobda rasm yo'q "
+                          f"(finishReason={cand.get('finishReason')})")
+    raise RuntimeError("Rasm generatsiya qilinmadi. Sabablar:\n  - "
+                       + "\n  - ".join(dict.fromkeys(errors))[:900])
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -516,6 +542,31 @@ def tg_voice(chat, path, reply_to=None):
     key = "voice" if method == "sendVoice" else "audio"
     with open(p, "rb") as f:
         return tg_call(method, data=d, files={key: f}, timeout=180)
+
+
+def tg_send_post(chat, post):
+    """Rasm + matn + audio yuboradi. Matn caption limitidan uzun bo'lsa —
+    rasm alohida, matn alohida xabar sifatida ketadi."""
+    text = post["text"]
+    img = post.get("image_path")
+    has_img = bool(img) and Path(img).exists()
+
+    if has_img and len(text) <= CAPTION_LIMIT:
+        root = tg_photo(chat, img, caption=text)["message_id"]
+    elif has_img:
+        tg_photo(chat, img)
+        root = tg_msg(chat, text)["message_id"]
+        print(f"[tg] matn {len(text)} belgi — alohida xabar sifatida yuborildi")
+    else:
+        root = tg_msg(chat, text)["message_id"]
+
+    v = post.get("voice_path")
+    if v and Path(v).exists():
+        try:
+            tg_voice(chat, v, reply_to=root)
+        except Exception as e:
+            log(f"[tg] audio yuborilmadi: {e}")
+    return root
 
 
 def tg_clear_markup(chat, mid):
@@ -644,7 +695,10 @@ Tayanch faktlar:
 Shu mavzuda bitta Telegram post yoz.
 
 Talablar:
-- {MIN_CHARS}-{MAX_CHARS} belgi (HTML teglar bilan birga)
+- UZUNLIK: {MIN_CHARS}-{MAX_CHARS} belgi. Bu ENG MUHIM talab.
+  "title" va "body" birgalikda {MAX_CHARS} belgidan OSHMASLIGI shart.
+  Yozib bo'lgach belgilarni sanab chiq. Uzun bo'lsa — qisqartir.
+  Uzun post yaxshi post emas. Qisqa, aniq, keraksiz gapsiz yoz.
 - O'zbek tili, lotin yozuvi, to'g'ri apostrof
 - Faqat <b>, <i>, <code>. Markdown YO'Q
 - Hashtag YO'Q. Emoji eng ko'pi 1 ta
@@ -666,7 +720,38 @@ Javobni FAQAT shu JSON ko'rinishida ber:
             "image_idea": d.get("image_idea", topic.get("topic", "")),
             "text": f"<b>{title}</b>\n\n{body}"}
     print(f"[2-agent] Post yozildi — {len(post['text'])} belgi")
+
+    # Caption limitidan oshsa — to'liq qayta yozmasdan faqat qisqartiramiz
+    if len(post["text"]) > CAPTION_LIMIT:
+        short = _shorten(post["text"])
+        if short and len(short) < len(post["text"]):
+            post["text"] = short
+            m = re.search(r"<b>(.*?)</b>", short, re.S)
+            if m:
+                post["title"] = strip_tags(m.group(1)).strip()
+            print(f"[2-agent] Qisqartirildi — {len(short)} belgi")
     return post
+
+
+def _shorten(text):
+    """Postni mazmunini saqlab qisqartiradi."""
+    prompt = f"""Quyidagi Telegram postini {MAX_CHARS} belgidan qisqa qil.
+
+QOIDALAR:
+- Mazmun, sarlavha va <code> ichidagi namuna prompt saqlanib qolsin
+- Keraksiz sifat va takroriy gaplarni olib tashla
+- HTML teglar (<b>, <i>, <code>) o'zgarmasin va yopilgan bo'lsin
+- Yangi ma'lumot qo'shma
+- Faqat qisqartirilgan postning to'liq matnini qaytar, boshqa hech narsa yozma
+
+POST:
+{text}"""
+    try:
+        out = clean(gem_text(prompt, temperature=0.4))
+        return out if not hard_checks(out) else None
+    except RuntimeError as e:
+        print(f"[2-agent] Qisqartirish xatosi: {e}")
+        return None
 
 
 def agent3_image(post):
@@ -698,8 +783,8 @@ def hard_checks(text, image_path=None):
     issues = []
     if not (text or "").strip():
         return ["Post matni bo'sh"]
-    if len(text) > CAPTION_LIMIT:
-        issues.append(f"Matn juda uzun: {len(text)} belgi (limit {CAPTION_LIMIT})")
+    if len(text) > MESSAGE_LIMIT:
+        issues.append(f"Matn juda uzun: {len(text)} belgi (limit {MESSAGE_LIMIT})")
     if len(text) < 200:
         issues.append(f"Matn juda qisqa: {len(text)} belgi")
     if "#" in text:
@@ -769,7 +854,7 @@ Javobni FAQAT shu JSON ko'rinishida ber:
 
     passed = bool(v.get("passed"))
     fixed = clean(v.get("fixed_text") or "")
-    if fixed and len(fixed) <= CAPTION_LIMIT and not hard_checks(fixed, image_path):
+    if fixed and not hard_checks(fixed, image_path):
         if fixed != post["text"]:
             print("[5-agent] Matn tahrirlandi")
             post["text"] = fixed
@@ -788,18 +873,7 @@ def agent6_publish(post):
         log("[6-agent] DRY_RUN=1 — kanalga chiqarilmadi")
         tg_msg(TELEGRAM_ADMIN_ID, "ℹ️ <i>DRY_RUN yoqilgan — post kanalga chiqmadi.</i>")
         return
-    img = post.get("image_path")
-    if img and Path(img).exists():
-        msg = tg_photo(TELEGRAM_CHANNEL, img, caption=post["text"])
-    else:
-        msg = tg_msg(TELEGRAM_CHANNEL, post["text"])
-    mid = msg["message_id"]
-    v = post.get("voice_path")
-    if v and Path(v).exists():
-        try:
-            tg_voice(TELEGRAM_CHANNEL, v, reply_to=mid)
-        except Exception as e:
-            log(f"[6-agent] audio yuborilmadi: {e}")
+    mid = tg_send_post(TELEGRAM_CHANNEL, post)
     hist_add(post["topic"].get("topic", ""), post.get("title", ""),
              {"message_id": mid})
     log(f"[6-agent] Kanalga chiqdi — message_id {mid}")
@@ -833,18 +907,7 @@ def build_post(avoid, label=""):
 
 def send_preview(post, deadline, round_no):
     kb = {"inline_keyboard": [[{"text": "🔄 Qayta qilish", "callback_data": REDO_DATA}]]}
-    img = post.get("image_path")
-    if img and Path(img).exists():
-        m = tg_photo(TELEGRAM_ADMIN_ID, img, caption=post["text"])
-    else:
-        m = tg_msg(TELEGRAM_ADMIN_ID, post["text"])
-    root = m["message_id"]
-    v = post.get("voice_path")
-    if v and Path(v).exists():
-        try:
-            tg_voice(TELEGRAM_ADMIN_ID, v, reply_to=root)
-        except Exception as e:
-            log(f"[preview] audio yuborilmadi: {e}")
+    tg_send_post(TELEGRAM_ADMIN_ID, post)
     header = (f"<b>PREVIEW</b> · {RUBRIC}\n"
               f"Chiqish vaqti: <b>{deadline:%H:%M}</b>"
               + (f" · {round_no}-variant" if round_no > 1 else "")
