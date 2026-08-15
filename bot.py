@@ -317,6 +317,11 @@ def gem_post(model, body):
                 last = f"HTTP {r.status_code}"
                 time.sleep(5 * (a + 1))
                 continue
+            # Ba'zi modellar thinkingConfig ni qo'llamaydi — olib tashlab qayta urinamiz
+            if (r.status_code == 400 and "thinking" in r.text.lower()
+                    and body.get("generationConfig", {}).pop("thinkingConfig", None)):
+                print("[gemini] thinkingConfig qo'llanmadi — usiz qayta urinilmoqda")
+                continue
             raise RuntimeError(f"Gemini HTTP {r.status_code}: {r.text[:500]}")
         except requests.RequestException as e:
             last = str(e)
@@ -324,10 +329,17 @@ def gem_post(model, body):
     raise RuntimeError(f"Gemini so'rovi muvaffaqiyatsiz: {last}")
 
 
-def gem_text(prompt, search=False, temperature=0.9, json_mode=False):
+def gem_text(prompt, search=False, temperature=0.9, json_mode=False,
+             max_tokens=16384):
     body = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": temperature, "maxOutputTokens": 4096},
+        "generationConfig": {
+            "temperature": temperature,
+            "maxOutputTokens": max_tokens,
+            # "O'ylash" rejimini o'chiramiz — u chiqish tokenlarini yeb qo'yadi
+            # va javob o'rtasida uzilib qolishiga sabab bo'ladi.
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
         "safetySettings": [{"category": c, "threshold": "BLOCK_ONLY_HIGH"} for c in (
             "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH",
             "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT")],
@@ -338,19 +350,36 @@ def gem_text(prompt, search=False, temperature=0.9, json_mode=False):
         body["generationConfig"]["responseMimeType"] = "application/json"
 
     resp = gem_post(GEMINI_TEXT_MODEL, body)
+    cand = (resp.get("candidates") or [{}])[0]
+    finish = cand.get("finishReason", "")
     try:
-        parts = resp["candidates"][0]["content"]["parts"]
-    except (KeyError, IndexError):
-        raise RuntimeError(f"Gemini javobi bo'sh: {json.dumps(resp)[:400]}")
+        parts = cand["content"]["parts"]
+    except (KeyError, TypeError):
+        raise RuntimeError(f"Gemini javobi bo'sh (finishReason={finish}): "
+                           f"{json.dumps(resp)[:300]}")
     out = "".join(p.get("text", "") for p in parts).strip()
     if not out:
-        raise RuntimeError("Gemini bo'sh matn qaytardi")
+        raise RuntimeError(f"Gemini bo'sh matn qaytardi (finishReason={finish})")
+    if finish == "MAX_TOKENS":
+        raise RuntimeError("Gemini javobi token limitiga yetib uzilib qoldi")
     return out
 
 
-def gem_json(prompt, search=False, temperature=0.9):
-    return parse_json(gem_text(prompt, search=search, temperature=temperature,
-                               json_mode=not search))
+def gem_json(prompt, search=False, temperature=0.9, attempts=3):
+    """JSON qaytaradigan so'rov. Javob buzilsa qayta uriniladi."""
+    last = None
+    for i in range(attempts):
+        try:
+            return parse_json(gem_text(prompt, search=search,
+                                       temperature=temperature,
+                                       json_mode=not search))
+        except RuntimeError as e:
+            last = e
+            print(f"[gemini] {i+1}-urinish muvaffaqiyatsiz: {str(e)[:200]}")
+            # keyingi urinishda qisqaroq/aniqroq javob so'raymiz
+            temperature = max(0.3, temperature - 0.25)
+            time.sleep(3)
+    raise RuntimeError(f"Gemini JSON qaytara olmadi ({attempts} urinish): {last}")
 
 
 def gem_image(prompt, out_path):
