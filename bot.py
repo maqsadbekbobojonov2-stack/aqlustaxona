@@ -1010,8 +1010,20 @@ def doctor():
                         or ch.get("username") or "?")
         if chats:
             for cid, (ctype, name) in chats.items():
-                mark = " <-- SIZNING ADMIN_ID" if str(cid) == str(TELEGRAM_ADMIN_ID) else ""
+                mark = " <-- ADMIN_ID shu" if str(cid) == str(TELEGRAM_ADMIN_ID) else ""
                 print(f"   {cid}   ({ctype})  {name}{mark}")
+            # Har biriga test xabar yuborib ko'ramiz
+            print("\n   TEST YUBORISH:")
+            for cid, (ctype, name) in chats.items():
+                try:
+                    tg_msg(cid, "✅ Diagnostika: bot shu chatga yoza oladi.")
+                    print(f"   {cid}  ISHLAYDI  ({ctype}, {name})")
+                    if ctype in ("group", "supergroup", "channel"):
+                        print(f"      >>> TELEGRAM_CHANNEL uchun shu raqamni qo'ying: {cid}")
+                    else:
+                        print(f"      >>> TELEGRAM_ADMIN_ID uchun shu raqamni qo'ying: {cid}")
+                except Exception as e:
+                    print(f"   {cid}  ISHLAMAYDI — {str(e)[:120]}")
         else:
             print("   Hech kim yozmagan (yoki eski xabarlar tozalangan).")
             print("   >>> Botni oching va /start bosing, keyin qayta ishga tushiring.")
