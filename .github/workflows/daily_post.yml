@@ -1,0 +1,67 @@
+name: Kunlik post — AQLUSTAXONA
+
+on:
+  schedule:
+    # 14:05 UTC = 19:05 Toshkent. Erta boshlanadi, chunki GitHub cron kechikadi.
+    # Post baribir aniq 19:45 da chiqadi — vaqtni skript o'zi boshqaradi.
+    - cron: "5 14 * * *"
+  workflow_dispatch:
+    inputs:
+      run_now:
+        description: "Jadvalni kutmasdan hoziroq ishga tushirish"
+        type: boolean
+        default: true
+      preview_only:
+        description: "Faqat preview (kanalga chiqarmaslik)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests
+
+      - name: Postni yaratish va chiqarish
+        env:
+          TELEGRAM_BOT_TOKEN:  ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL:    ${{ secrets.TELEGRAM_CHANNEL }}
+          TELEGRAM_ADMIN_ID:   ${{ secrets.TELEGRAM_ADMIN_ID }}
+          GEMINI_API_KEY:      ${{ secrets.GEMINI_API_KEY }}
+          ELEVENLABS_API_KEY:  ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          PUBLISH_TIME:        ${{ vars.PUBLISH_TIME || '19:45' }}
+          RUBRIC:              ${{ vars.RUBRIC || 'Claude maslahatlar' }}
+          DRY_RUN:             ${{ vars.DRY_RUN || '0' }}
+          TIMEZONE:            "Asia/Tashkent"
+        run: |
+          ARGS=""
+          if [ "${{ github.event.inputs.run_now }}" = "true" ]; then ARGS="$ARGS --now"; fi
+          if [ "${{ github.event.inputs.preview_only }}" = "true" ]; then ARGS="$ARGS --preview-only"; fi
+          python bot.py $ARGS
+
+      - name: Tarixni saqlash
+        if: always()
+        run: |
+          if [ -n "$(git status --porcelain history.json)" ]; then
+            git config user.name  "aqlustaxona-bot"
+            git config user.email "bot@users.noreply.github.com"
+            git add history.json
+            git commit -m "chore: post tarixi $(date -u +%F)"
+            git pull --rebase --autostash || true
+            git push
+          fi
