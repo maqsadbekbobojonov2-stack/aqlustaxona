@@ -972,11 +972,103 @@ def run(force_now=False, preview_only=False):
     agent6_publish(post)
 
 
+def doctor():
+    """Diagnostika: bot kim, kim unga yozgan, xabar bora oladimi."""
+    print("=" * 60)
+    print("  TELEGRAM DIAGNOSTIKASI")
+    print("=" * 60)
+
+    # 1. Bot kim?
+    try:
+        me = tg_call("getMe")
+        print(f"\n1) BOT TOPILDI")
+        print(f"   Nomi:     {me.get('first_name')}")
+        print(f"   Username: @{me.get('username')}")
+        print(f"   >>> Telegramda AYNAN shu botni oching: "
+              f"https://t.me/{me.get('username')}")
+    except Exception as e:
+        print(f"\n1) BOT TOPILMADI: {e}")
+        print("   >>> TELEGRAM_BOT_TOKEN xato. @BotFather dan qayta oling.")
+        return
+
+    # 2. Kim botga yozgan?
+    print(f"\n2) BOTGA KIM YOZGAN?")
+    try:
+        updates = tg_call("getUpdates", data={"timeout": 0, "limit": 100})
+        chats = {}
+        for u in updates:
+            for key in ("message", "edited_message", "channel_post",
+                        "my_chat_member", "callback_query"):
+                obj = u.get(key)
+                if not obj:
+                    continue
+                ch = obj.get("chat") or obj.get("from") or {}
+                if ch.get("id"):
+                    chats[ch["id"]] = (
+                        ch.get("type", "user"),
+                        ch.get("title") or ch.get("first_name")
+                        or ch.get("username") or "?")
+        if chats:
+            for cid, (ctype, name) in chats.items():
+                mark = " <-- SIZNING ADMIN_ID" if str(cid) == str(TELEGRAM_ADMIN_ID) else ""
+                print(f"   {cid}   ({ctype})  {name}{mark}")
+        else:
+            print("   Hech kim yozmagan (yoki eski xabarlar tozalangan).")
+            print("   >>> Botni oching va /start bosing, keyin qayta ishga tushiring.")
+    except Exception as e:
+        print(f"   Xato: {e}")
+
+    # 3. Adminga xabar bora oladimi?
+    print(f"\n3) ADMINGA TEST XABAR (ID: {TELEGRAM_ADMIN_ID})")
+    try:
+        tg_msg(TELEGRAM_ADMIN_ID,
+               "✅ <b>Diagnostika muvaffaqiyatli</b>\n\n"
+               "Bot siz bilan bog'lana oladi. Preview shu chatga keladi.")
+        print("   OK — xabar yuborildi. Telegramni tekshiring.")
+    except Exception as e:
+        print(f"   XATO: {e}")
+        if "chat not found" in str(e).lower():
+            print("   >>> Sabab: botga hech qachon /start yozmagansiz,")
+            print("       YOKI TELEGRAM_ADMIN_ID xato.")
+            print("       2-bo'limdagi ro'yxatdan to'g'ri raqamni oling.")
+
+    # 4. Kanal/guruh
+    print(f"\n4) KANAL/GURUH TEKSHIRUVI ({TELEGRAM_CHANNEL})")
+    try:
+        chat = tg_call("getChat", data={"chat_id": TELEGRAM_CHANNEL})
+        print(f"   Topildi: {chat.get('title')} (turi: {chat.get('type')}, "
+              f"id: {chat.get('id')})")
+        try:
+            m = tg_call("getChatMember", data={"chat_id": TELEGRAM_CHANNEL,
+                                               "user_id": me["id"]})
+            st = m.get("status")
+            print(f"   Botning maqomi: {st}")
+            if st not in ("administrator", "creator"):
+                print("   >>> Bot ADMIN emas! Post yubora olmaydi.")
+            elif not m.get("can_post_messages", True):
+                print("   >>> Botda 'Post Messages' huquqi yo'q!")
+            else:
+                print("   OK — bot post yubora oladi.")
+        except Exception as e:
+            print(f"   Maqomni tekshirib bo'lmadi: {e}")
+    except Exception as e:
+        print(f"   XATO: {e}")
+        print("   >>> TELEGRAM_CHANNEL xato yoki bot u yerga qo'shilmagan.")
+        print("       Yopiq guruh bo'lsa -100... ko'rinishidagi ID kerak.")
+
+    print("\n" + "=" * 60)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--now", action="store_true", help="jadvalni kutmasdan boshlash")
     ap.add_argument("--preview-only", action="store_true", help="kanalga chiqarmaslik")
+    ap.add_argument("--doctor", action="store_true", help="faqat diagnostika")
     args = ap.parse_args()
+
+    if args.doctor:
+        doctor()
+        return 0
     try:
         run(force_now=args.now, preview_only=args.preview_only)
         return 0
