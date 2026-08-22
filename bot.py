@@ -1340,13 +1340,13 @@ def weekly_preview():
 
     for n in hikoyalar:
         try:
-            tg_msg(TELEGRAM_ADMIN_ID, f"<b>[{n}-hikoya]</b>\n\n" + story_read(n))
+            tg_msg(TELEGRAM_ADMIN_ID, story_read(n))
             time.sleep(1)
         except Exception as e:
             log(f"[haftalik] {n}-hikoya yuborilmadi: {e}")
     for n in darslar:
         try:
-            tg_msg(TELEGRAM_ADMIN_ID, f"<b>[{n}-dars]</b>\n\n" + kurs_all()[n])
+            tg_msg(TELEGRAM_ADMIN_ID, kurs_all()[n])
             time.sleep(1)
         except Exception as e:
             log(f"[haftalik] {n}-dars yuborilmadi: {e}")
