@@ -1237,7 +1237,9 @@ def run(force_now=False, preview_only=False):
         publish_at = t + timedelta(minutes=PREVIEW_LEAD)
         log(f"[jadval] {PUBLISH_TIME} o'tib ketgan — yangi vaqt {publish_at:%H:%M}")
     if force_now:
-        publish_at = now() + timedelta(minutes=PREVIEW_LEAD)
+        # Preview kerak bo'lmagan turlar darhol chiqadi, kutmaydi
+        publish_at = (now() if src not in PREVIEW_TURLARI
+                      else now() + timedelta(minutes=PREVIEW_LEAD))
 
     # ── Preview kerak bo'lmagan turlar: hikoya va kurs ──────────
     if src not in PREVIEW_TURLARI:
