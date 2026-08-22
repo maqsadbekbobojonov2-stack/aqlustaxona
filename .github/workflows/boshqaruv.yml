@@ -1,0 +1,61 @@
+name: Bot boshqaruvi
+
+# Telegram bot orqali kanalni boshqarish.
+# Har 6 soatda qayta ishga tushadi va 5 soat 40 daqiqa tinglaydi —
+# ya'ni deyarli uzluksiz ishlaydi. Ochiq repo uchun Actions bepul.
+
+on:
+  schedule:
+    - cron: "2 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "Necha daqiqa tinglasin"
+        required: false
+        default: "340"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bot-listen
+  cancel-in-progress: true
+
+jobs:
+  listen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests pillow
+
+      - name: Botni tinglash
+        env:
+          TELEGRAM_BOT_TOKEN:  ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL:    ${{ secrets.TELEGRAM_CHANNEL }}
+          TELEGRAM_ADMIN_ID:   ${{ secrets.TELEGRAM_ADMIN_ID }}
+          GEMINI_API_KEY:      ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_2:    ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_3:    ${{ secrets.GEMINI_API_KEY_3 }}
+          GEMINI_API_KEY_4:    ${{ secrets.GEMINI_API_KEY_4 }}
+          ELEVENLABS_API_KEY:  ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          TIMEZONE:            "Asia/Tashkent"
+          ERTALAB_VAQT:        ${{ vars.ERTALAB_VAQT || '08:45' }}
+          KECHQURUN_VAQT:      ${{ vars.KECHQURUN_VAQT || '19:45' }}
+        run: python bot.py --listen --minutes ${{ github.event.inputs.minutes || '340' }}
+
+      - name: Holatni saqlash
+        if: always()
+        run: |
+          if [ -n "$(git status --porcelain history.json stories_state.json)" ]; then
+            git config user.name  "aqlustaxona-bot"
+            git config user.email "bot@users.noreply.github.com"
+            git add history.json stories_state.json
+            git commit -m "chore: bot boshqaruvi $(date -u +%F)"
+            git pull --rebase --autostash || true
+            git push
+          fi
