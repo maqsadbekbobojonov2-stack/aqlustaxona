@@ -1,1 +1,6 @@
-{"last_sent": 0, "kurs_oxirgi": 0, "oxirgi_kechki": null, "sent": []}
+{
+ "last_sent": 0,
+ "kurs_oxirgi": 1,
+ "oxirgi_kechki": "kurs",
+ "sent": []
+}
