@@ -1425,6 +1425,226 @@ def run(force_now=False, preview_only=False):
     agent6_publish(post)
 
 
+# ══════════════════════════════════════════════════════════════════
+#  9-QISM — BOT BOSHQARUVI (--listen)
+# ══════════════════════════════════════════════════════════════════
+
+YORDAM = """<b>AqlUstaxona boshqaruv paneli</b>
+
+Buyruq yozing yoki oddiy tilda ayting — men tushunaman.
+
+<b>Post chiqarish</b>
+/hikoya — navbatdagi hikoyani ko'rsatish
+/hikoya 42 — 42-hikoyani ko'rsatish
+/dars — navbatdagi darsni ko'rsatish
+/dars 7 — 7-darsni ko'rsatish
+/yangilik — yangi yangilik posti tayyorlash
+
+Har biriga tugmalar keladi:
+✅ Kanalga chiqarish · 🔄 Rasmni qayta · ❌ Bekor
+
+<b>Boshqa</b>
+/haftalik — kelgusi 7 kunlik postlar
+/holat — hozirgi holat
+/yordam — shu ro'yxat
+
+<b>Oddiy tilda ham bo'ladi</b>
+"12-darsni ko'rsat"
+"bugungi yangilikni tayyorla"
+"qaysi kunda turibmiz"
+"""
+
+_PENDING = {}      # {token: post}
+_TOK = [0]
+
+
+def _tok():
+    _TOK[0] += 1
+    return f"p{_TOK[0]}"
+
+
+def _kb(tok):
+    return {"inline_keyboard": [[
+        {"text": "✅ Kanalga chiqarish", "callback_data": f"pub:{tok}"},
+        {"text": "🔄 Rasmni qayta", "callback_data": f"img:{tok}"},
+    ], [
+        {"text": "❌ Bekor qilish", "callback_data": f"del:{tok}"},
+    ]]}
+
+
+def _yubor_preview(post, izoh=""):
+    tok = _tok()
+    _PENDING[tok] = post
+    tg_send_post(TELEGRAM_ADMIN_ID, post)
+    tg_msg(TELEGRAM_ADMIN_ID,
+           (izoh or "Tayyor. Nima qilay?"), markup=_kb(tok))
+    return tok
+
+
+def _tur_nomi(post):
+    return {"stories": "hikoya", "kurs": "dars",
+            "yangilik": "yangilik"}.get(post.get("source"), "post")
+
+
+def cmd_holat():
+    st = stories_state()
+    try:
+        h = len(stories_all())
+    except Exception:
+        h = 0
+    try:
+        k = len(kurs_all())
+    except Exception:
+        k = 0
+    return (f"<b>Holat</b>\n\n"
+            f"Hikoyalar: {st.get('last_sent', 0)}/{h} chiqdi · "
+            f"keyingisi {stories_next_day()}-kun\n"
+            f"Kurs: {st.get('kurs_oxirgi', 0)}/{k} chiqdi · "
+            f"keyingisi {kurs_next()}-dars\n"
+            f"Oxirgi kechki post: {st.get('oxirgi_kechki') or '—'}\n\n"
+            f"Ertalab {os.getenv('ERTALAB_VAQT', '08:45')} — hikoya\n"
+            f"Kechqurun {os.getenv('KECHQURUN_VAQT', '19:45')} — "
+            f"kurs va yangilik almashib\n"
+            f"Gemini kalitlari: {len(GEMINI_KEYS)} ta")
+
+
+def niyat_aniqla(matn):
+    """Erkin matnni buyruqqa aylantiradi."""
+    prompt = f"""Foydalanuvchi Telegram boti orqali kanalni boshqaryapti.
+Uning xabarini quyidagi buyruqlardan biriga aylantir.
+
+Buyruqlar:
+- hikoya (raqam ixtiyoriy) — 365 kunlik hikoyani ko'rsatish
+- dars (raqam ixtiyoriy) — startap kursi darsini ko'rsatish
+- yangilik — yangi yangilik posti tayyorlash
+- haftalik — kelgusi 7 kunlik postlar ro'yxati
+- holat — hozirgi holat, qaysi kunda turibmiz
+- yordam — buyruqlar ro'yxati
+- nomalum — tushunarsiz
+
+Xabar: {matn}
+
+Javobni FAQAT JSON ber: {{"buyruq": "...", "raqam": null yoki son}}"""
+    try:
+        d = gem_json(prompt, temperature=0.2, attempts=2)
+        return d.get("buyruq", "nomalum"), d.get("raqam")
+    except Exception as e:
+        log(f"[listen] niyat aniqlanmadi: {e}")
+        return "nomalum", None
+
+
+def buyruqni_bajar(buyruq, raqam):
+    if buyruq == "yordam":
+        tg_msg(TELEGRAM_ADMIN_ID, YORDAM)
+        return
+    if buyruq == "holat":
+        tg_msg(TELEGRAM_ADMIN_ID, cmd_holat())
+        return
+    if buyruq == "haftalik":
+        tg_msg(TELEGRAM_ADMIN_ID, "⏳ Tayyorlanmoqda...")
+        weekly_preview()
+        return
+    if buyruq in ("hikoya", "dars", "yangilik"):
+        tg_msg(TELEGRAM_ADMIN_ID, "⏳ Post tayyorlanmoqda — 1-2 daqiqa...")
+        if buyruq == "hikoya":
+            post = build_story_post(int(raqam) if raqam else None)
+        elif buyruq == "dars":
+            post = build_kurs_post(int(raqam) if raqam else None)
+        else:
+            post = build_post([], "")
+        _yubor_preview(post, f"Yuqorida — {_tur_nomi(post)}. Nima qilay?")
+        return
+    tg_msg(TELEGRAM_ADMIN_ID,
+           "Tushunmadim. /yordam yozing yoki oddiyroq ayting.")
+
+
+def matnni_ishla(matn):
+    m = (matn or "").strip()
+    if not m:
+        return
+    if m.startswith("/"):
+        qism = m[1:].split()
+        buyruq = qism[0].lower().split("@")[0]
+        raqam = qism[1] if len(qism) > 1 and qism[1].isdigit() else None
+        buyruq = {"start": "yordam", "help": "yordam"}.get(buyruq, buyruq)
+    else:
+        buyruq, raqam = niyat_aniqla(m)
+    try:
+        buyruqni_bajar(buyruq, raqam)
+    except Exception as e:
+        log(f"[listen] xato: {e}")
+        tg_msg(TELEGRAM_ADMIN_ID, f"❌ Xato: <code>{str(e)[:400]}</code>")
+
+
+def tugmani_ishla(cq):
+    data = cq.get("data", "")
+    amal, _, tok = data.partition(":")
+    post = _PENDING.get(tok)
+    mid = (cq.get("message") or {}).get("message_id")
+    if not post:
+        tg_answer(cq["id"], "Bu post eskirgan.")
+        return
+    if amal == "del":
+        _PENDING.pop(tok, None)
+        tg_answer(cq["id"], "Bekor qilindi.")
+        if mid:
+            tg_clear_markup(TELEGRAM_ADMIN_ID, mid)
+        tg_msg(TELEGRAM_ADMIN_ID, "❌ Bekor qilindi, kanalga chiqmadi.")
+        return
+    if amal == "img":
+        tg_answer(cq["id"], "Rasm qayta chizilmoqda...")
+        if mid:
+            tg_clear_markup(TELEGRAM_ADMIN_ID, mid)
+        try:
+            _attach_media(post)
+            _yubor_preview(post, "Yangi rasm. Nima qilay?")
+        except Exception as e:
+            tg_msg(TELEGRAM_ADMIN_ID, f"❌ Rasm chizilmadi: {str(e)[:300]}")
+        return
+    if amal == "pub":
+        tg_answer(cq["id"], "Kanalga chiqarilmoqda...")
+        if mid:
+            tg_clear_markup(TELEGRAM_ADMIN_ID, mid)
+        try:
+            agent6_publish(post)
+            _PENDING.pop(tok, None)
+            tg_msg(TELEGRAM_ADMIN_ID, "✅ Kanalga chiqdi.")
+        except Exception as e:
+            tg_msg(TELEGRAM_ADMIN_ID, f"❌ Chiqmadi: {str(e)[:400]}")
+
+
+def listen(minutes=340):
+    """Botni tinglash rejimi. Admin buyruqlarini qabul qiladi."""
+    log(f"[listen] boshlandi — {minutes} daqiqa")
+    tg_msg(TELEGRAM_ADMIN_ID,
+           "🟢 <b>Boshqaruv yoqildi</b>\n\nBuyruq yozing yoki /yordam.")
+    offset = tg_drain()
+    tugash = time.time() + minutes * 60
+    while time.time() < tugash:
+        try:
+            ups = tg_call("getUpdates",
+                          data={"offset": offset, "timeout": 45,
+                                "allowed_updates": json.dumps(
+                                    ["message", "callback_query"])},
+                          timeout=60)
+        except Exception as e:
+            log(f"[listen] getUpdates: {e}")
+            time.sleep(5)
+            continue
+        for u in ups or []:
+            offset = u["update_id"] + 1
+            cq = u.get("callback_query")
+            if cq:
+                if str((cq.get("from") or {}).get("id")) == str(TELEGRAM_ADMIN_ID):
+                    tugmani_ishla(cq)
+                continue
+            msg = u.get("message") or {}
+            if str((msg.get("from") or {}).get("id")) != str(TELEGRAM_ADMIN_ID):
+                continue
+            matnni_ishla(msg.get("text", ""))
+    log("[listen] vaqt tugadi")
+
+
 def weekly_preview():
     """Kelgusi 7 kunlik postlarni adminga oldindan yuboradi.
 
@@ -1604,6 +1824,10 @@ def main():
                     help="365 hikoyadan aniq kunni chiqarish (masalan --day 42)")
     ap.add_argument("--dars", type=int, default=None,
                     help="kursdan aniq darsni chiqarish (masalan --dars 12)")
+    ap.add_argument("--listen", action="store_true",
+                    help="botni tinglash rejimi (boshqaruv paneli)")
+    ap.add_argument("--minutes", type=int, default=340,
+                    help="tinglash rejimi necha daqiqa ishlasin")
     ap.add_argument("--weekly", action="store_true",
                     help="kelgusi 7 kunlik postlarni adminga yuborish")
     args = ap.parse_args()
@@ -1612,6 +1836,14 @@ def main():
         os.environ["FORCE_DAY"] = str(args.day)
     if args.dars:
         os.environ["FORCE_KURS"] = str(args.dars)
+
+    if args.listen:
+        try:
+            listen(args.minutes)
+            return 0
+        except Exception as e:
+            log(f"[FATAL] listen: {e}\n{traceback.format_exc()}")
+            return 1
 
     if args.weekly:
         try:
