@@ -448,8 +448,10 @@ def build_kurs_post(n=None):
     text = all_[n]
     title = strip_tags(text.split("\n", 1)[0]).strip()
     log(f"=== Kurs {n}/{len(all_)} — {title} ===")
+    toza = re.sub(r"^[^A-Za-zА-Яа-яЎўҚқҒғҲҳ0-9]+", "", title).strip()
     post = {
         "source": "kurs", "kurs_n": n, "title": title, "text": text,
+        "card_title": toza, "badge": f"STARTAP KURSI · {n}/{len(all_)}",
         "image_idea": story_image_idea(title, text),
         "audio_script": story_audio_script(text, title),
         "topic": {"topic": f"Startap kursi · {n}-dars · {title}"},
@@ -497,12 +499,129 @@ Javobni FAQAT shu JSON ko'rinishida ber:
     return topics[0]
 
 
+FONT_PATHS = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    "C:/Windows/Fonts/arialbd.ttf",
+]
+
+
+def _font(size):
+    from PIL import ImageFont
+    for fp in FONT_PATHS:
+        if Path(fp).exists():
+            try:
+                return ImageFont.truetype(fp, size)
+            except Exception:
+                pass
+    return ImageFont.load_default()
+
+
+def _wrap(draw, text, font, max_w):
+    words, lines, cur = text.split(), [], ""
+    for w in words:
+        t = (cur + " " + w).strip()
+        if draw.textlength(t, font=font) <= max_w or not cur:
+            cur = t
+        else:
+            lines.append(cur)
+            cur = w
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def make_card(title, badge, bg_path=None, out=None):
+    """Post sarlavhasi yozilgan rasm tayyorlaydi.
+
+    bg_path bo'lsa — Gemini chizgan rasm fon bo'ladi, ustiga matn tushadi.
+    Bo'lmasa — brend rangidagi gradient fon chiziladi.
+    """
+    from PIL import Image, ImageDraw, ImageFilter
+    W, H = 1280, 720
+    out = Path(out or (BUILD / "card.png"))
+
+    if bg_path and Path(bg_path).exists():
+        img = Image.open(bg_path).convert("RGB")
+        # markazdan kesib 16:9 ga keltiramiz
+        r = max(W / img.width, H / img.height)
+        img = img.resize((int(img.width * r) + 1, int(img.height * r) + 1),
+                         Image.LANCZOS)
+        x = (img.width - W) // 2
+        y = (img.height - H) // 2
+        img = img.crop((x, y, x + W, y + H))
+    else:
+        img = Image.new("RGB", (W, H), (32, 28, 26))
+        d0 = ImageDraw.Draw(img)
+        for i in range(H):
+            k = i / H
+            d0.line([(0, i), (W, i)],
+                    fill=(int(46 + 171 * k * 0.55),
+                          int(38 + 80 * k * 0.55),
+                          int(34 + 52 * k * 0.55)))
+
+    # pastdan yuqoriga qorayish — matn o'qilishi uchun
+    veil = Image.new("L", (1, H))
+    for i in range(H):
+        k = i / H
+        veil.putpixel((0, i), int(255 * min(1.0, max(0.0, (k - 0.18) / 0.82) ** 1.4 * 0.92)))
+    veil = veil.resize((W, H))
+    img = Image.composite(Image.new("RGB", (W, H), (18, 15, 14)), img, veil)
+
+    d = ImageDraw.Draw(img)
+    M = 78
+
+    # yuqori chap burchakdagi yorliq
+    if badge:
+        bf = _font(30)
+        bw = d.textlength(badge, font=bf)
+        d.rounded_rectangle([M, 56, M + bw + 44, 56 + 56], radius=28,
+                            fill=(217, 119, 87))
+        d.text((M + 22, 56 + 12), badge, font=bf, fill=(255, 252, 250))
+
+    # sarlavha — sig'maguncha kichraytiramiz
+    size = 74
+    while size >= 40:
+        f = _font(size)
+        lines = _wrap(d, title, f, W - 2 * M)
+        lh = int(size * 1.22)
+        if len(lines) * lh <= 330:
+            break
+        size -= 5
+    y = H - 92 - len(lines) * lh
+    for ln in lines:
+        d.text((M + 2, y + 2), ln, font=f, fill=(0, 0, 0))
+        d.text((M, y), ln, font=f, fill=(255, 253, 251))
+        y += lh
+
+    # pastki chiziq va kanal nomi
+    d.rectangle([M, H - 62, M + 92, H - 56], fill=(217, 119, 87))
+    cf = _font(26)
+    d.text((M + 112, H - 68), "@aqlustaxonastartap", font=cf,
+           fill=(228, 222, 216))
+
+    img.save(out, "PNG", optimize=True)
+    return out
+
+
 def _attach_media(post):
     try:
         post["image_path"] = agent3_image(post)
     except Exception as e:
         log(f"[rasm] chizilmadi: {e}")
         post["image_path"] = None
+
+    # Kurs va yangilik postlarida sarlavha rasm ustiga yoziladi
+    if post.get("source") in ("kurs", "yangilik"):
+        try:
+            post["image_path"] = make_card(
+                post.get("card_title") or strip_tags(post["title"]),
+                post.get("badge"), post.get("image_path"))
+            log("[rasm] sarlavha rasm ustiga yozildi")
+        except Exception as e:
+            log(f"[rasm] kartochka yasalmadi: {e}")
+
     try:
         post["voice_path"] = agent4_voice(post)
     except Exception as e:
@@ -1203,6 +1322,9 @@ def build_post(avoid, label=""):
     post["voice_path"] = agent4_voice(post)
     post["topic"] = topic
     post["source"] = src
+    if src == "yangilik":
+        post["card_title"] = strip_tags(post["title"]).strip()
+        post["badge"] = f"YANGILIK · {now():%d.%m}"
     log(f"=== Tayyor: {post['title']} ===")
     return post
 
@@ -1340,13 +1462,13 @@ def weekly_preview():
 
     for n in hikoyalar:
         try:
-            tg_msg(TELEGRAM_ADMIN_ID, story_read(n))
+            tg_msg(TELEGRAM_ADMIN_ID, f"<b>[{n}-hikoya]</b>\n\n" + story_read(n))
             time.sleep(1)
         except Exception as e:
             log(f"[haftalik] {n}-hikoya yuborilmadi: {e}")
     for n in darslar:
         try:
-            tg_msg(TELEGRAM_ADMIN_ID, kurs_all()[n])
+            tg_msg(TELEGRAM_ADMIN_ID, f"<b>[{n}-dars]</b>\n\n" + kurs_all()[n])
             time.sleep(1)
         except Exception as e:
             log(f"[haftalik] {n}-dars yuborilmadi: {e}")
