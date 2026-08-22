@@ -2,13 +2,21 @@ name: Kunlik post — AQLUSTAXONA
 
 on:
   schedule:
-    # 14:05 UTC = 19:05 Toshkent. Erta boshlanadi, chunki GitHub cron kechikadi.
-    # Post baribir aniq 19:45 da chiqadi — vaqtni skript o'zi boshqaradi.
-    - cron: "5 14 * * *"
+    # Barcha vaqtlar UTC. Toshkent = UTC+5.
+    # GitHub cron kechikishi mumkin — shuning uchun erta boshlanadi,
+    # aniq chiqish vaqtini skript o'zi kutadi.
+    - cron: "15 3 * * *"     # 08:45 Toshkent — ertalabki hikoya
+    - cron: "5 14 * * *"     # 19:45 Toshkent — kurs yoki yangilik
+    - cron: "30 15 * * 0"    # yakshanba 20:30 — haftalik ko'rik
   workflow_dispatch:
     inputs:
+      slot:
+        description: "Qaysi slot"
+        type: choice
+        options: [kechqurun, ertalab]
+        default: kechqurun
       run_now:
-        description: "Jadvalni kutmasdan hoziroq ishga tushirish"
+        description: "Jadvalni kutmasdan hoziroq chiqarish"
         type: boolean
         default: true
       preview_only:
@@ -16,11 +24,19 @@ on:
         type: boolean
         default: false
       doctor:
-        description: "Diagnostika: Telegram sozlamalarini tekshirish"
+        description: "Diagnostika: sozlamalarni tekshirish"
+        type: boolean
+        default: false
+      weekly:
+        description: "Haftalik ko'rik: 7 kunlik postlarni adminga yuborish"
         type: boolean
         default: false
       day:
-        description: "365 hikoyadan aniq kun raqami (bo'sh — navbatdagisi)"
+        description: "Aniq hikoya raqami (bo'sh — navbatdagisi)"
+        required: false
+        default: ""
+      dars:
+        description: "Aniq kurs darsi raqami (bo'sh — navbatdagisi)"
         required: false
         default: ""
 
@@ -52,23 +68,50 @@ jobs:
           GEMINI_API_KEY:      ${{ secrets.GEMINI_API_KEY }}
           ELEVENLABS_API_KEY:  ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
-          PUBLISH_TIME:        ${{ vars.PUBLISH_TIME || '19:45' }}
-          RUBRIC:              ${{ vars.RUBRIC || 'Claude maslahatlar' }}
-          POST_SOURCE:         ${{ vars.POST_SOURCE || 'stories' }}
+          POST_SOURCE:         ${{ vars.POST_SOURCE }}
           DRY_RUN:             ${{ vars.DRY_RUN || '0' }}
           TIMEZONE:            "Asia/Tashkent"
+          SCHEDULE:            ${{ github.event.schedule }}
+          IN_SLOT:             ${{ github.event.inputs.slot }}
         run: |
-          ARGS=""
+          set -e
+
+          # ── Slot va chiqish vaqtini aniqlash ──────────────────
+          case "$SCHEDULE" in
+            "15 3 * * *")   SLOT=ertalab;   PUBLISH_TIME=${{ vars.ERTALAB_VAQT || '08:45' }} ;;
+            "5 14 * * *")   SLOT=kechqurun; PUBLISH_TIME=${{ vars.KECHQURUN_VAQT || '19:45' }} ;;
+            "30 15 * * 0")  SLOT=haftalik ;;
+            *)              SLOT=${IN_SLOT:-kechqurun}
+                            if [ "$SLOT" = "ertalab" ]; then
+                              PUBLISH_TIME=${{ vars.ERTALAB_VAQT || '08:45' }}
+                            else
+                              PUBLISH_TIME=${{ vars.KECHQURUN_VAQT || '19:45' }}
+                            fi ;;
+          esac
+          export SLOT PUBLISH_TIME
+          echo "SLOT=$SLOT  PUBLISH_TIME=$PUBLISH_TIME"
+
+          # ── Haftalik ko'rik ────────────────────────────────────
+          if [ "$SLOT" = "haftalik" ] || [ "${{ github.event.inputs.weekly }}" = "true" ]; then
+            export SLOT=kechqurun
+            python bot.py --weekly
+            exit $?
+          fi
+
+          # ── Diagnostika ────────────────────────────────────────
           if [ "${{ github.event.inputs.doctor }}" = "true" ]; then
             python bot.py --doctor
             exit $?
           fi
+
+          ARGS=""
           if [ "${{ github.event.inputs.run_now }}" = "true" ]; then ARGS="$ARGS --now"; fi
           if [ "${{ github.event.inputs.preview_only }}" = "true" ]; then ARGS="$ARGS --preview-only"; fi
           if [ -n "${{ github.event.inputs.day }}" ]; then ARGS="$ARGS --day ${{ github.event.inputs.day }}"; fi
+          if [ -n "${{ github.event.inputs.dars }}" ]; then ARGS="$ARGS --dars ${{ github.event.inputs.dars }}"; fi
           python bot.py $ARGS
 
-      - name: Tarixni saqlash
+      - name: Holatni saqlash
         if: always()
         run: |
           if [ -n "$(git status --porcelain history.json stories_state.json)" ]; then
