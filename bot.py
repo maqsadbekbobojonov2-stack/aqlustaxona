@@ -66,7 +66,33 @@ def _int(name, default):
 TELEGRAM_BOT_TOKEN = _req("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHANNEL = _req("TELEGRAM_CHANNEL")
 TELEGRAM_ADMIN_ID = _req("TELEGRAM_ADMIN_ID")
-GEMINI_API_KEY = _req("GEMINI_API_KEY")
+# Gemini kalitlari: asosiysi + zaxiralar. Limit tugasa avtomatik almashadi.
+GEMINI_KEYS = [k for k in (
+    os.getenv("GEMINI_API_KEY", "").strip(),
+    os.getenv("GEMINI_API_KEY_2", "").strip(),
+    os.getenv("GEMINI_API_KEY_3", "").strip(),
+    os.getenv("GEMINI_API_KEY_4", "").strip(),
+) if k]
+if not GEMINI_KEYS:
+    raise SystemExit(
+        "\n[XATO] Sozlama topilmadi: GEMINI_API_KEY\n"
+        "       GitHub -> Settings -> Secrets and variables -> Actions\n"
+        "       bo'limiga 'GEMINI_API_KEY' nomli secret qo'shing.\n")
+GEMINI_API_KEY = GEMINI_KEYS[0]
+_KEY_IDX = [0]
+
+
+def gem_key():
+    return GEMINI_KEYS[_KEY_IDX[0]]
+
+
+def gem_rotate_key():
+    """Keyingi zaxira kalitga o'tadi. Kalit qolmasa False qaytaradi."""
+    if _KEY_IDX[0] + 1 >= len(GEMINI_KEYS):
+        return False
+    _KEY_IDX[0] += 1
+    print(f"[gemini] kalit almashtirildi -> {_KEY_IDX[0] + 1}/{len(GEMINI_KEYS)}")
+    return True
 
 GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "").strip() or "gemini-2.5-flash"
 GEMINI_IMAGE_MODEL = os.getenv("GEMINI_IMAGE_MODEL", "").strip() or "gemini-2.5-flash-image"
@@ -569,9 +595,13 @@ def gem_post(model, body):
     for a in range(4):
         try:
             r = requests.post(f"{GEM_BASE}/{model}:generateContent",
-                              params={"key": GEMINI_API_KEY}, json=body, timeout=240)
+                              params={"key": gem_key()}, json=body, timeout=240)
             if r.status_code == 200:
                 return r.json()
+            # Kvota yoki kalit muammosi — zaxira kalitga o'tamiz
+            if r.status_code in (429, 403) and gem_rotate_key():
+                last = f"HTTP {r.status_code} (kalit almashtirildi)"
+                continue
             if r.status_code in (429, 500, 502, 503, 504):
                 last = f"HTTP {r.status_code}"
                 time.sleep(5 * (a + 1))
@@ -1416,6 +1446,9 @@ def doctor():
         print(f"   XATO: {e}")
         print("   >>> TELEGRAM_CHANNEL xato yoki bot u yerga qo'shilmagan.")
         print("       Yopiq guruh bo'lsa -100... ko'rinishidagi ID kerak.")
+
+    print(f"\n   Gemini kalitlari: {len(GEMINI_KEYS)} ta "
+          f"({'zaxira bor' if len(GEMINI_KEYS) > 1 else 'zaxira YO`Q'})")
 
     # 5. Kontent jadvali
     print(f"\n5) KONTENT JADVALI (slot: {SLOT})")
