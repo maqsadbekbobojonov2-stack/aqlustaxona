@@ -19,6 +19,10 @@ on:
         description: "Diagnostika: Telegram sozlamalarini tekshirish"
         type: boolean
         default: false
+      day:
+        description: "365 hikoyadan aniq kun raqami (bo'sh — navbatdagisi)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -50,6 +54,7 @@ jobs:
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
           PUBLISH_TIME:        ${{ vars.PUBLISH_TIME || '19:45' }}
           RUBRIC:              ${{ vars.RUBRIC || 'Claude maslahatlar' }}
+          POST_SOURCE:         ${{ vars.POST_SOURCE || 'stories' }}
           DRY_RUN:             ${{ vars.DRY_RUN || '0' }}
           TIMEZONE:            "Asia/Tashkent"
         run: |
@@ -60,15 +65,16 @@ jobs:
           fi
           if [ "${{ github.event.inputs.run_now }}" = "true" ]; then ARGS="$ARGS --now"; fi
           if [ "${{ github.event.inputs.preview_only }}" = "true" ]; then ARGS="$ARGS --preview-only"; fi
+          if [ -n "${{ github.event.inputs.day }}" ]; then ARGS="$ARGS --day ${{ github.event.inputs.day }}"; fi
           python bot.py $ARGS
 
       - name: Tarixni saqlash
         if: always()
         run: |
-          if [ -n "$(git status --porcelain history.json)" ]; then
+          if [ -n "$(git status --porcelain history.json stories_state.json)" ]; then
             git config user.name  "aqlustaxona-bot"
             git config user.email "bot@users.noreply.github.com"
-            git add history.json
+            git add history.json stories_state.json
             git commit -m "chore: post tarixi $(date -u +%F)"
             git pull --rebase --autostash || true
             git push
