@@ -43,6 +43,7 @@ ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / "build"
 BUILD.mkdir(exist_ok=True)
 HISTORY_FILE = ROOT / "history.json"
+SOZLAMA_FILE = ROOT / "sozlamalar.json"
 
 
 def _req(name):
@@ -66,13 +67,22 @@ def _int(name, default):
 TELEGRAM_BOT_TOKEN = _req("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHANNEL = _req("TELEGRAM_CHANNEL")
 TELEGRAM_ADMIN_ID = _req("TELEGRAM_ADMIN_ID")
+def _kalitlar(nom):
+    """NOM, NOM_2, NOM_3 ... ko'rinishidagi kalitlarni yig'adi.
+    Nechta bo'lsa — shuncha. Yo'g'i o'tkazib yuboriladi."""
+    out = []
+    v = os.getenv(nom, "").strip()
+    if v:
+        out.append(v)
+    for i in range(2, 10):
+        v = os.getenv(f"{nom}_{i}", "").strip()
+        if v and v not in out:
+            out.append(v)
+    return out
+
+
 # Gemini kalitlari: asosiysi + zaxiralar. Limit tugasa avtomatik almashadi.
-GEMINI_KEYS = [k for k in (
-    os.getenv("GEMINI_API_KEY", "").strip(),
-    os.getenv("GEMINI_API_KEY_2", "").strip(),
-    os.getenv("GEMINI_API_KEY_3", "").strip(),
-    os.getenv("GEMINI_API_KEY_4", "").strip(),
-) if k]
+GEMINI_KEYS = _kalitlar("GEMINI_API_KEY")
 if not GEMINI_KEYS:
     raise SystemExit(
         "\n[XATO] Sozlama topilmadi: GEMINI_API_KEY\n"
@@ -94,8 +104,24 @@ def gem_rotate_key():
     print(f"[gemini] kalit almashtirildi -> {_KEY_IDX[0] + 1}/{len(GEMINI_KEYS)}")
     return True
 
-GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "").strip() or "gemini-2.5-flash"
+GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "").strip() or "gemini-3.6-flash"
 GEMINI_IMAGE_MODEL = os.getenv("GEMINI_IMAGE_MODEL", "").strip() or "gemini-2.5-flash-image"
+
+# Google modellarni tez-tez eskirtiradi (masalan gemini-2.5-flash 2026
+# avgustda o'chirildi va 404 qaytara boshladi). Shuning uchun matn so'rovi
+# 404 (model topilmadi) qaytarsa, ro'yxatdagi keyingi modelga o'tamiz —
+# bot hech qachon "eskirgan model" sababli to'xtab qolmaydi.
+TEXT_MODEL_FALLBACKS = [
+    "gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash",
+    "gemini-2.0-flash",
+]
+
+# Grok (xAI) — Gemini'ning HAMMA kaliti va modeli ishlamay qolgan taqdirdagi
+# ENG OXIRGI zaxira. Doim emas, faqat Gemini butunlay tugaganda ishlaydi.
+GROK_KEYS = _kalitlar("GROK_API_KEY")
+GROK_MODEL = os.getenv("GROK_MODEL", "").strip() or "grok-4.6"
+GROK_MODEL_FALLBACKS = ["grok-4.6", "grok-4-fast", "grok-4", "grok-3"]
+_GROK_IDX = [0]
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "").strip()
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "").strip() or "JBFqnCBsd6RMkjVDRZzb"
@@ -132,6 +158,41 @@ MESSAGE_LIMIT = 4000      # Telegram oddiy xabar limiti
 MIN_CHARS, MAX_CHARS = 450, 850
 ALLOWED_TAGS = {"b", "i", "u", "s", "code", "pre", "a"}
 REDO_DATA = "redo"
+
+# ── GitHub bilan bog'lanish ──────────────────────────────────────
+# GitHub Actions ichida ishlaganda GITHUB_TOKEN o'zi beriladi
+# (workflow'da: GITHUB_TOKEN: ${{ github.token }}).
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "").strip()
+GITHUB_REPO = (os.getenv("GITHUB_REPOSITORY", "").strip()
+               or os.getenv("GITHUB_REPO", "").strip())
+GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "").strip() or "main"
+
+# Bot Telegram orqali o'zgartira oladigan sozlamalar.
+# Bular sozlamalar.json faylida GitHub'da saqlanadi — ya'ni admin botga
+# aytadi, bot GitHub'ga yozadi, keyingi postlar shu sozlama bilan chiqadi.
+SOZLAMA_KALITLAR = {
+    "ertalab_vaqt":     "Ertalabki post vaqti, masalan 08:45",
+    "kechqurun_vaqt":   "Kechqurungi post vaqti, masalan 19:45",
+    "kurs_hashtag":     "Kurs postidagi hashtag, masalan #startap_kursi",
+    "yangilik_hashtag": "Yangilik postidagi hashtag, masalan #yangilik",
+    "kanal_nomi":       "Rasm pastida turadigan yozuv",
+    "rasm_qoshimcha":   "Rasm chizilishiga qo'shimcha ko'rsatma",
+    "matn_qoshimcha":   "Post matni yozilishiga qo'shimcha ko'rsatma",
+}
+
+
+def sozlamalar():
+    if not SOZLAMA_FILE.exists():
+        return {}
+    try:
+        d = json.loads(SOZLAMA_FILE.read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def sozlama(kalit, standart=""):
+    return (sozlamalar().get(kalit) or "").strip() or standart
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -250,25 +311,46 @@ ko'ringandan so'ng.
 """
 
 IMAGE_STYLE = """
-Two-layer composition:
-1. BACKGROUND: realistic, softly blurred environment (desk, laptop, office,
-   table by a window, cafe). Natural light, warm tones.
-2. FOREGROUND: one glossy 3D icon representing the post's core idea.
-   Rounded, smooth, plastic-glossy material, soft shadow. Like a modern app
-   icon but volumetric.
+A premium 3D render — the quality of a paid illustration, not a stock photo.
+
+MOST IMPORTANT RULE: the picture must EXPLAIN THE IDEA OF THE POST BY
+ITSELF. A person who only looks at the image, without reading a single
+word, should understand what the post is about. Build a small, clear 3D
+scene that acts out the idea — show the situation, the comparison, the
+before/after, the cause and effect. Do not settle for a decorative object
+that merely "looks business-like".
+
+Composition:
+1. BACKGROUND: clean, softly blurred environment (desk, laptop, office,
+   table by a window, cafe). Natural light, warm tones, shallow depth of
+   field. It must stay quiet and uncluttered.
+2. THE SCENE: beautiful, highly detailed 3D objects that stage the post's
+   core idea as directly and literally as possible. Rounded, smooth,
+   glossy-plastic or soft-clay material, gentle rim light, soft realistic
+   shadows, subtle reflections — volumetric, tactile, polished, like a
+   high-end 3D illustration.
+
+Keep the scene simple: 1-3 objects maximum, one clear focal point. A
+clear, slightly exaggerated idea reads better than a crowded one.
 
 COLORS: warm terracotta / coral accent (#D97757) as the highlight.
 Supporting: cream, white, light grey, light sand.
 Avoid deep blue and neon. No "cyber", "matrix" or "hacker" aesthetic.
 
-FORMAT: 16:9 horizontal. Leave open space in the centre — shift the icon
-slightly left or right.
+FORMAT: 16:9 horizontal. IMPORTANT — the TOP THIRD of the frame must stay
+calm and uncluttered (soft background only), because a title will be placed
+there. Position the hero object in the lower half, slightly left or right
+of centre.
 
 STRICT PROHIBITIONS:
-- NO text, letters, numbers or logos anywhere in the image
+- NO written words, letters, numbers or logos anywhere in the image.
+  The meaning must come through the objects and the scene, not through
+  text. Simple wordless symbols (arrow, tick, cross, coin, graph line,
+  question mark) ARE allowed and encouraged when they make the idea
+  instantly readable.
 - No human faces (hands, shoulders are fine)
 - No robots, androids, brains, circuit boards or other AI cliches
-- No stock-photo artificiality — it must look natural
+- No stock-photo artificiality — it must look natural and expensive
 """
 
 
@@ -338,6 +420,28 @@ def hist_add(topic, title, extra=None):
                             encoding="utf-8")
 
 
+def hist_last():
+    """Kanalga eng oxiri chiqqan postning tarix yozuvi."""
+    d = hist_load()
+    for e in reversed(d):
+        if e.get("message_id"):
+            return e
+    return None
+
+
+def hist_remove(entry):
+    """Bitta tarix yozuvini o'chirib qolganini qaytaradi."""
+    d = hist_load()
+    for i in range(len(d) - 1, -1, -1):
+        if d[i].get("date") == entry.get("date") and \
+                d[i].get("message_id") == entry.get("message_id"):
+            d.pop(i)
+            break
+    HISTORY_FILE.write_text(json.dumps(d, ensure_ascii=False, indent=2),
+                            encoding="utf-8")
+    return d
+
+
 # ── 365 kunlik hikoyalar ─────────────────────────────────────────
 def stories_state():
     if not STORIES_STATE.exists():
@@ -380,6 +484,15 @@ def stories_mark_sent(day, message_id=None):
         {"day": day, "date": now().strftime("%Y-%m-%d %H:%M"),
          "message_id": message_id})
     st["sent"] = st["sent"][-400:]
+    STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
+                             encoding="utf-8")
+
+
+def stories_rollback(day):
+    """day-kun hech qachon chiqmagandek qiladi — o'chirilgan post uchun."""
+    st = stories_state()
+    st["sent"] = [s for s in st.get("sent", []) if s.get("day") != day]
+    st["last_sent"] = max([s.get("day", 0) for s in st["sent"]], default=0)
     STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
                              encoding="utf-8")
 
@@ -438,6 +551,52 @@ def yangilik_mark_sent():
                              encoding="utf-8")
 
 
+def kurs_rollback(n):
+    """n-dars hech qachon chiqmagandek qiladi — o'chirilgan post uchun."""
+    st = stories_state()
+    if st.get("kurs_oxirgi") == n:
+        st["kurs_oxirgi"] = n - 1
+        STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
+                                 encoding="utf-8")
+
+
+def kechki_tur_tiklash(qolgan_hist):
+    """Post o'chirilgach, ertalab/kechqurun almashinuvini (oxirgi_kechki)
+    qolgan tarixdan qayta hisoblaydi — aks holda kurs/yangilik navbati
+    buziladi."""
+    st = stories_state()
+    for e in reversed(qolgan_hist):
+        if e.get("tur") in ("kurs", "yangilik"):
+            st["oxirgi_kechki"] = e["tur"]
+            break
+    else:
+        st.pop("oxirgi_kechki", None)
+    STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
+                             encoding="utf-8")
+
+
+def postni_ochir(entry):
+    """Tarix yozuvidagi postni kanaldan o'chiradi va holatni shu post
+    hech qachon chiqmagandek qaytaradi (kun/dars raqami, navbat)."""
+    mid = entry.get("message_id")
+    if mid:
+        try:
+            tg_delete_message(TELEGRAM_CHANNEL, mid)
+        except RuntimeError as e:
+            # Telegram'dan o'chmasa ham (masalan allaqachon o'chirilgan) —
+            # holatni baribir tozalaymiz, aks holda navbat buzilib qoladi
+            log(f"[ochir] Telegram'dan o'chmadi ({e}) — holat baribir tozalanadi")
+    tur = entry.get("tur")
+    if tur == "stories" and entry.get("day"):
+        stories_rollback(entry["day"])
+    elif tur == "kurs" and entry.get("dars"):
+        kurs_rollback(entry["dars"])
+    qolgan = hist_remove(entry)
+    if tur in ("kurs", "yangilik"):
+        kechki_tur_tiklash(qolgan)
+    return entry
+
+
 def build_kurs_post(n=None):
     """kurs.json dagi navbatdagi darsni post qilib beradi. Matn o'zgarmaydi."""
     all_ = kurs_all()
@@ -451,7 +610,8 @@ def build_kurs_post(n=None):
     toza = re.sub(r"^[^A-Za-zА-Яа-яЎўҚқҒғҲҳ0-9]+", "", title).strip()
     post = {
         "source": "kurs", "kurs_n": n, "title": title, "text": text,
-        "card_title": toza, "badge": "#startap_kursi",
+        "card_title": toza,
+        "badge": sozlama("kurs_hashtag", "#startap_kursi"),
         "image_idea": story_image_idea(title, text),
         "audio_script": story_audio_script(text, title),
         "topic": {"topic": f"Startap kursi · {n}-dars · {title}"},
@@ -588,42 +748,47 @@ def make_card(title, badge, bg_path=None, out=None):
                           int(38 + 80 * k * 0.55),
                           int(34 + 52 * k * 0.55)))
 
-    # pastdan yuqoriga qorayish — matn o'qilishi uchun
+    # Sarlavha TEPADA turadi — shuning uchun yuqoridan pastga qorayish.
+    # Pastda ham yengil soya: kanal nomi o'qilishi uchun.
     veil = Image.new("L", (1, H))
     for i in range(H):
         k = i / H
-        veil.putpixel((0, i), int(255 * min(1.0, max(0.0, (k - 0.18) / 0.82) ** 1.4 * 0.92)))
+        tepa = max(0.0, (0.62 - k) / 0.62) ** 1.25 * 0.90
+        past = max(0.0, (k - 0.86) / 0.14) ** 1.4 * 0.55
+        veil.putpixel((0, i), int(255 * min(1.0, max(tepa, past))))
     veil = veil.resize((W, H))
     img = Image.composite(Image.new("RGB", (W, H), (18, 15, 14)), img, veil)
 
     d = ImageDraw.Draw(img)
     M = 78
 
-    # yuqori chap burchakdagi hashtag
+    # 1) Tepada hashtag
+    y = 56
     if badge:
-        bf = _font(36)
-        d.text((M + 2, 60 + 2), badge, font=bf, fill=(0, 0, 0))
-        d.text((M, 60), badge, font=bf, fill=(232, 145, 112))
+        bf = _font(34)
+        d.text((M + 2, y + 2), badge, font=bf, fill=(0, 0, 0))
+        d.text((M, y), badge, font=bf, fill=(232, 145, 112))
+        y += 56
 
-    # sarlavha — sig'maguncha kichraytiramiz
-    size = 74
+    # 2) Uning tagida sarlavha — sig'maguncha kichraytiramiz
+    size = 76
     while size >= 40:
         f = _font(size)
         lines = _wrap(d, title, f, W - 2 * M)
-        lh = int(size * 1.22)
-        if len(lines) * lh <= 330:
+        lh = int(size * 1.20)
+        if len(lines) * lh <= 300:
             break
         size -= 5
-    y = H - 92 - len(lines) * lh
     for ln in lines:
         d.text((M + 2, y + 2), ln, font=f, fill=(0, 0, 0))
         d.text((M, y), ln, font=f, fill=(255, 253, 251))
         y += lh
 
-    # pastki chiziq va kanal nomi
+    # 3) Pastki chap burchakda kanal nomi
     d.rectangle([M, H - 62, M + 92, H - 56], fill=(217, 119, 87))
     cf = _font(26)
-    d.text((M + 112, H - 68), "@aqlustaxonastartap", font=cf,
+    d.text((M + 112, H - 68), sozlama("kanal_nomi", "@aqlustaxonastartap"),
+           font=cf,
            fill=(228, 222, 216))
 
     img.save(out, "PNG", optimize=True)
@@ -684,13 +849,25 @@ HIKOYA:
 
 
 def story_image_idea(title, text):
-    """Rasm uchun ingliz tilida qisqa vizual g'oya."""
-    prompt = f"""Read this Uzbek startup story and give ONE short visual idea
-for an illustrating image. English, one sentence, no text/letters in the scene.
-Return only the sentence.
+    """Rasm uchun ingliz tilida qisqa vizual g'oya.
+
+    Eng muhimi: rasm postning MA'NOSINI tushuntirsin — odam faqat rasmga
+    qarab, bitta so'z o'qimasdan, post nima haqidaligini anglasin."""
+    prompt = f"""Read this Uzbek startup post and describe ONE 3D scene that
+EXPLAINS ITS MAIN IDEA visually.
+
+Requirements:
+- A person who only sees the picture, without reading any words, must
+  understand what the post is teaching.
+- Stage the idea: show the situation, the contrast, the before/after,
+  or the cause and effect. Not a generic "business" object.
+- 1-3 objects maximum, one clear focal point.
+- Wordless symbols (arrow, tick, cross, coin, rising line, question mark)
+  are allowed and helpful. No written words or letters.
+- English, ONE sentence, concrete and visual. Return only the sentence.
 
 TITLE: {title}
-STORY: {strip_tags(text)[:1500]}"""
+POST: {strip_tags(text)[:1500]}"""
     try:
         out = clean(gem_text(prompt, temperature=0.8)).strip()
         return out.split("\n")[0][:300] or title
@@ -725,6 +902,86 @@ def build_story_post(day=None):
     }
     _attach_media(post)
     return post
+
+
+# ══════════════════════════════════════════════════════════════════
+#  3.5-QISM — GITHUB (bot repo'ni o'zi o'zgartiradi)
+# ══════════════════════════════════════════════════════════════════
+
+GH_API = "https://api.github.com"
+
+
+def gh_bor():
+    """GitHub'ga yozish imkoni bormi."""
+    return bool(GITHUB_TOKEN and GITHUB_REPO)
+
+
+def _gh_sarlavha():
+    return {"Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"}
+
+
+def gh_oqi(yol):
+    """Repodagi faylni o'qiydi. Qaytaradi (matn, sha). Yo'q bo'lsa (None, None)."""
+    r = requests.get(f"{GH_API}/repos/{GITHUB_REPO}/contents/{yol}",
+                     headers=_gh_sarlavha(), params={"ref": GITHUB_BRANCH},
+                     timeout=60)
+    if r.status_code == 404:
+        return None, None
+    if r.status_code != 200:
+        raise RuntimeError(f"GitHub o'qish xatosi {r.status_code}: {r.text[:200]}")
+    j = r.json()
+    return base64.b64decode(j.get("content", "")).decode("utf-8", "replace"), j.get("sha")
+
+
+def gh_yoz(yol, matn, izoh):
+    """Repodagi faylni yozadi/yangilaydi. Commit havolasini qaytaradi."""
+    if not gh_bor():
+        raise RuntimeError("GitHub ulanmagan (GITHUB_TOKEN yo'q)")
+    if yol.startswith(".github/workflows/"):
+        # Actions tokeni workflow fayllarini o'zgartira olmaydi.
+        raise RuntimeError("Workflow fayllarini bot o'zgartira olmaydi")
+    _, sha = gh_oqi(yol)
+    body = {"message": izoh, "branch": GITHUB_BRANCH,
+            "content": base64.b64encode(matn.encode("utf-8")).decode("ascii")}
+    if sha:
+        body["sha"] = sha
+    r = requests.put(f"{GH_API}/repos/{GITHUB_REPO}/contents/{yol}",
+                     headers=_gh_sarlavha(), json=body, timeout=90)
+    if r.status_code not in (200, 201):
+        raise RuntimeError(f"GitHub yozish xatosi {r.status_code}: {r.text[:250]}")
+    j = r.json()
+    return (j.get("commit") or {}).get("html_url", "")
+
+
+def gh_suhbat_yoz(kim, matn):
+    """Admin bilan bo'lgan har bir gapni GitHub'dagi kundalikka yozadi.
+
+    Fayl: suhbat/YYYY-MM.md — oyiga bitta. Xato bo'lsa jim o'tadi,
+    chunki bu botning asosiy ishiga xalaqit bermasligi kerak."""
+    if not gh_bor():
+        return None
+    try:
+        yol = f"suhbat/{now():%Y-%m}.md"
+        eski, _ = gh_oqi(yol)
+        qator = f"- **{now():%d.%m %H:%M}** · {kim}: {matn.strip()}\n"
+        yangi = (eski or f"# Suhbat kundaligi — {now():%Y-%m}\n\n") + qator
+        return gh_yoz(yol, yangi, f"suhbat: {matn.strip()[:60]}")
+    except Exception as e:
+        print(f"[github] suhbat yozilmadi: {e}")
+        return None
+
+
+def gh_sozlama_yoz(kalit, qiymat):
+    """Bitta sozlamani o'zgartirib, GitHub'ga commit qiladi."""
+    d = sozlamalar()
+    d[kalit] = qiymat
+    matn = json.dumps(d, ensure_ascii=False, indent=2) + "\n"
+    SOZLAMA_FILE.write_text(matn, encoding="utf-8")
+    if not gh_bor():
+        return None
+    return gh_yoz("sozlamalar.json", matn, f"sozlama: {kalit} = {qiymat}"[:70])
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -782,7 +1039,26 @@ def gem_text(prompt, search=False, temperature=0.9, json_mode=False,
     elif json_mode:
         body["generationConfig"]["responseMimeType"] = "application/json"
 
-    resp = gem_post(GEMINI_TEXT_MODEL, body)
+    models = [GEMINI_TEXT_MODEL] + [m for m in TEXT_MODEL_FALLBACKS
+                                     if m != GEMINI_TEXT_MODEL]
+    resp, last_err = None, None
+    for model in models:
+        try:
+            resp = gem_post(model, body)
+        except RuntimeError as e:
+            last_err = e
+            print(f"[gemini] {model}: {str(e)[:150]} — keyingi modelga o'tilmoqda")
+            continue
+        if model != GEMINI_TEXT_MODEL:
+            print(f"[gemini] matn modeli: {model}")
+        break
+    if resp is None:
+        if GROK_KEYS:
+            print("[gemini] hammasi ishlamadi — Grok'ga o'tilmoqda (oxirgi zaxira)")
+            return grok_text(prompt, json_mode=json_mode or not search,
+                             max_tokens=min(max_tokens, 8192))
+        raise RuntimeError(f"Gemini so'rovi muvaffaqiyatsiz (barcha modellar): {last_err}")
+
     cand = (resp.get("candidates") or [{}])[0]
     finish = cand.get("finishReason", "")
     try:
@@ -796,6 +1072,48 @@ def gem_text(prompt, search=False, temperature=0.9, json_mode=False,
     if finish == "MAX_TOKENS":
         raise RuntimeError("Gemini javobi token limitiga yetib uzilib qoldi")
     return out
+
+
+def grok_text(prompt, json_mode=False, temperature=0.7, max_tokens=8192):
+    """Gemini butunlay ishlamay qolganda ishlatiladigan ENG OXIRGI zaxira."""
+    if not GROK_KEYS:
+        raise RuntimeError("GROK_API_KEY yo'q — zaxira ishlamaydi")
+    models = [GROK_MODEL] + [m for m in GROK_MODEL_FALLBACKS if m != GROK_MODEL]
+    last = None
+    for model in models:
+        model_died = False
+        for key in GROK_KEYS:
+            body = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            if json_mode:
+                body["response_format"] = {"type": "json_object"}
+            try:
+                r = requests.post(
+                    "https://api.x.ai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {key}",
+                             "Content-Type": "application/json"},
+                    json=body, timeout=120)
+            except requests.RequestException as e:
+                last = str(e)
+                continue
+            if r.status_code == 200:
+                out = (r.json().get("choices") or [{}])[0].get(
+                    "message", {}).get("content", "").strip()
+                if out:
+                    print(f"[grok] javob oldi — model {model}")
+                    return out
+                last = "Grok bo'sh javob qaytardi"
+                continue
+            last = f"HTTP {r.status_code}: {r.text[:200]}"
+            if r.status_code in (401, 403, 404):
+                model_died = True
+        if model_died:
+            continue
+    raise RuntimeError(f"Grok ham javob bermadi: {last}")
 
 
 def gem_json(prompt, search=False, temperature=0.9, attempts=3):
@@ -816,6 +1134,7 @@ def gem_json(prompt, search=False, temperature=0.9, attempts=3):
 
 
 IMAGE_MODEL_FALLBACKS = [
+    "gemini-3.6-flash-image",
     "gemini-2.5-flash-image",
     "gemini-2.5-flash-image-preview",
     "gemini-2.0-flash-preview-image-generation",
@@ -976,6 +1295,10 @@ def tg_voice(chat, path, reply_to=None):
         return tg_call(method, data=d, files={key: f}, timeout=180)
 
 
+def tg_delete_message(chat, message_id):
+    return tg_call("deleteMessage", data={"chat_id": chat, "message_id": message_id})
+
+
 def tg_send_post(chat, post):
     """Rasm + matn + audio yuboradi. Matn caption limitidan uzun bo'lsa —
     rasm alohida, matn alohida xabar sifatida ketadi."""
@@ -1105,6 +1428,10 @@ def agent2_write(topic, feedback=None, extra=""):
     facts = "\n".join(f"- {f}" for f in topic.get("key_facts", []))
     fb = (f"\n\nOLDINGI URINISH RAD ETILDI. Sabab:\n{feedback}\n"
           f"Bu xatolarni takrorlama." if feedback else "")
+    # Admin Telegram orqali qo'shgan ko'rsatma (sozlamalar.json)
+    qosh = sozlama("matn_qoshimcha")
+    if qosh:
+        extra = (extra + f"\n\n## ADMIN KO'RSATMASI (albatta bajar)\n{qosh}\n")
 
     prompt = f"""Sen "AQLUSTAXONA" Telegram kanalining kopirayterisan.
 
@@ -1189,13 +1516,17 @@ POST:
 
 
 def agent3_image(post):
+    qosh = sozlama("rasm_qoshimcha")
     prompt = f"""{IMAGE_STYLE}
-
+{('ADMIN NOTE (follow this too): ' + qosh) if qosh else ''}
 ---
 Generate one image for a Telegram post.
-Post subject: {post.get('image_idea')}
-Follow the style rules above exactly. Absolutely no text, letters, numbers
-or logos anywhere in the image."""
+
+The scene to build: {post.get('image_idea')}
+
+The picture must explain this idea on its own — someone who only looks at
+it, without reading anything, should understand what the post is about.
+Follow the style rules above exactly. No written words or letters."""
     try:
         p = gem_image(prompt, BUILD / "post.png")
         print(f"[3-agent] Rasm tayyor — {p.stat().st_size // 1024} KB")
@@ -1352,7 +1683,7 @@ def build_post(avoid, label=""):
     post["source"] = src
     if src == "yangilik":
         post["card_title"] = strip_tags(post["title"]).strip()
-        post["badge"] = "#yangilik"
+        post["badge"] = sozlama("yangilik_hashtag", "#yangilik")
     log(f"=== Tayyor: {post['title']} ===")
     return post
 
@@ -1457,29 +1788,37 @@ def run(force_now=False, preview_only=False):
 #  9-QISM — BOT BOSHQARUVI (--listen)
 # ══════════════════════════════════════════════════════════════════
 
-YORDAM = """<b>AqlUstaxona boshqaruv paneli</b>
+YORDAM = """<b>AqlUstaxona — men shu kanalning yordamchisiman</b>
 
-Buyruq yozing yoki oddiy tilda ayting — men tushunaman.
+Menga oddiy gap bilan ayting. Hech qanday buyruq yodlash shart emas.
+Tushunmasam — o'zim qayta so'rayman.
 
-<b>Post chiqarish</b>
-/hikoya — navbatdagi hikoyani ko'rsatish
-/hikoya 42 — 42-hikoyani ko'rsatish
-/dars — navbatdagi darsni ko'rsatish
-/dars 7 — 7-darsni ko'rsatish
-/yangilik — yangi yangilik posti tayyorlash
+Masalan shunday deyishingiz mumkin:
 
-Har biriga tugmalar keladi:
-✅ Kanalga chiqarish · 🔄 Rasmni qayta · ❌ Bekor
-
-<b>Boshqa</b>
-/haftalik — kelgusi 7 kunlik postlar
-/holat — hozirgi holat
-/yordam — shu ro'yxat
-
-<b>Oddiy tilda ham bo'ladi</b>
-"12-darsni ko'rsat"
-"bugungi yangilikni tayyorla"
+"bugungi hikoyani ko'ray"
+"12-darsni chiqar"
+"yangilik tayyorla"
+"kelasi haftada nima chiqadi"
 "qaysi kunda turibmiz"
+
+Kanalga chiqib ketgan post yoqmasa:
+
+"bu post xato bo'libdi, o'chir"
+"rasmga matn sig'mabdi, boshqasini qo'y"
+"oxirgi postni qayta qil"
+
+Doimiy o'zgarish kiritmoqchi bo'lsangiz — shunchaki ayting,
+men GitHub'ga saqlab qo'yaman:
+
+"rasm pastidagi yozuvni @aqlustaxona qil"
+"ertalabki postni 09:00 da chiqar"
+"rasmlar yorqinroq bo'lsin"
+"postlar qisqaroq yozilsin"
+
+Post tayyor bo'lgach, sizga ko'rsataman va tugmalar bilan
+so'rayman: kanalga chiqaraymi, rasmni qayta chizaymi, yoki bekormi.
+
+Har bir yozganingiz GitHub'dagi kundalikka tushib boradi.
 """
 
 _PENDING = {}      # {token: post}
@@ -1533,7 +1872,15 @@ def cmd_holat():
             f"Ertalab {os.getenv('ERTALAB_VAQT', '08:45')} — hikoya\n"
             f"Kechqurun {os.getenv('KECHQURUN_VAQT', '19:45')} — "
             f"kurs va yangilik almashib\n"
-            f"Gemini kalitlari: {len(GEMINI_KEYS)} ta")
+            f"Gemini kalitlari: {len(GEMINI_KEYS)} ta"
+            + (f" · Grok zaxira: bor ({len(GROK_KEYS)} ta)"
+               if GROK_KEYS else " · Grok zaxira: yo'q")
+            + (f"\nGitHub: ulangan ({GITHUB_REPO})" if gh_bor()
+               else "\nGitHub: ulanmagan")
+            + (("\n\n<b>Sozlamalar</b>\n"
+                + "\n".join(f"· {k}: {v}"
+                             for k, v in sozlamalar().items() if v))
+               if sozlamalar() else ""))
 
 
 BOT_KONTEKST = """
@@ -1558,58 +1905,260 @@ pastida kanal nomi turadi. Hikoyalarda toza rasm.
 Audio: ElevenLabs har postga qisqa ovozli izoh yozadi.
 
 Bot nima qila oladi: post tayyorlash va ko'rsatish, kanalga chiqarish,
-rasmni qayta chizdirish, haftalik ro'yxat berish, holatni aytish.
+rasmni qayta chizdirish, haftalik ro'yxat berish, holatni aytish,
+KANALDA ALLAQACHON CHIQQAN oxirgi postni o'chirish yoki uni o'chirib
+yangi rasm/matn bilan qayta tayyorlash (tahrirlash).
 
-Bot nima qila olmaydi: post uslubini (STYLE_GUIDE), jadval vaqtlarini va
-kod sozlamalarini o'zgartirish — bular GitHub'da bot.py va workflow
-fayllarida tahrirlanadi.
+Bot GitHub bilan bog'langan: admin bilan bo'lgan har bir gap repodagi
+suhbat/ papkasiga yozib boriladi, va admin aytgan doimiy sozlamalar
+sozlamalar.json fayliga saqlanadi. Ya'ni admin Telegram orqali GitHub'ni
+o'zgartira oladi — dasturchi kerak emas.
+
+Bot nima qila olmaydi: bot.py kodining o'zini va .github/workflows/
+fayllarini o'zgartirish (GitHub bunga ruxsat bermaydi). Faqat ENG OXIRGI
+chiqqan postni o'chira/tahrirlay oladi — undan oldingilarini emas.
 """
 
 
+AMALLAR = ("hikoya", "dars", "yangilik", "haftalik", "holat",
+           "yordam", "ochir", "tahrirla", "sozla", "javob")
+
+# ── Suhbat xotirasi ──────────────────────────────────────────────
+# Bot oxirgi gaplarni eslab turadi — shuning uchun "ha", "yo'q",
+# "o'shani qil" kabi kalta javoblar ham tushunarli bo'ladi.
+_TARIX = []            # [(kim, matn)] — oxirgi 10 ta
+_KUTILMOQDA = [None]   # {"amal", "raqam", "savol"} — so'ralgan aniqlik
+
+
+def _tarix_qosh(kim, matn):
+    _TARIX.append((kim, (matn or "").strip()[:400]))
+    del _TARIX[:-10]
+
+
+def _tarix_matn():
+    if not _TARIX:
+        return "(hali suhbat bo'lmagan)"
+    return "\n".join(f"{'Admin' if k == 'admin' else 'Sen'}: {m}"
+                     for k, m in _TARIX)
+
+
+def _javob_ber(matn):
+    """Adminga javob yozadi va uni suhbat xotirasiga qo'shadi."""
+    tg_msg(TELEGRAM_ADMIN_ID, matn)
+    _tarix_qosh("bot", strip_tags(matn))
+
+
 def suhbat(matn):
-    """Foydalanuvchi xabarini tushunadi: amal yoki oddiy javob."""
+    """Admin gapini tushunadi.
+
+    Qaytaradi: {"amal", "raqam", "ishonch", "javob", "savol"}
+    Ishonch past bo'lsa — "savol" maydonida bot o'z tili bilan
+    qayta so'raydigan aniqlashtiruvchi savol keladi.
+    """
     st = stories_state()
     holat = (f"Hozir: {stories_next_day()}-hikoya va {kurs_next()}-dars "
              f"navbatda. Oxirgi kechki post: {st.get('oxirgi_kechki') or 'yo`q'}.")
-    prompt = f"""Sen "{BOT_KONTEKST.strip()}"
+    oxirgi = hist_last()
+    oxirgi_post = ("Kanalga hali hech narsa chiqmagan." if not oxirgi else
+                   f"Kanalga eng oxiri chiqqan post: \"{oxirgi.get('title', '')}\" "
+                   f"({oxirgi.get('tur', '?')}, {oxirgi.get('date', '')}).")
+    sozlama_royxat = "\n".join(
+        f"  * {k} — {izoh}" + (f"  [hozir: {sozlama(k)}]" if sozlama(k) else "")
+        for k, izoh in SOZLAMA_KALITLAR.items())
+    kut = _KUTILMOQDA[0]
+    kutish = ("Kutilayotgan tasdiq YO'Q." if not kut else
+              f"""DIQQAT: sen hozirgina admindan shuni so'rading:
+"{kut['savol']}"
+Agar admin rozilik bildirsa (ha, mayli, to'g'ri, shu, davom et, bo'ladi,
+qil, aynan...) — amal sifatida "{kut['amal']}" ni tanla va ishonch 95 ber.
+Agar rad etsa (yo'q, kerakmas, boshqa narsa...) — "javob" tanla.""")
+
+    prompt = f"""{BOT_KONTEKST.strip()}
 
 {holat}
+{oxirgi_post}
 
-Sen shu kanalning boshqaruv yordamchisisan. Admin senga yozdi:
+Sen shu kanalning boshqaruv yordamchisisan. Admin bilan oddiy odam kabi
+suhbatlashasan — u hech qanday buyruq yodlamaydi, o'z so'zlari bilan
+gapiradi, ba'zan qisqa va noaniq yozadi, imlo xatolari bilan yozadi.
+
+SUHBAT TARIXI (oxirgi gaplar):
+{_tarix_matn()}
+
+{kutish}
+
+ADMINNING YANGI XABARI:
 ---
 {matn}
 ---
 
-Vazifang: uning gapini tushun va quyidagilardan birini tanla.
+Vazifang: uning nimani xohlayotganini tushun.
 
 AMALLAR:
-- "hikoya" — hikoya postini tayyorlab ko'rsatish (raqam bo'lsa o'shani)
-- "dars" — kurs darsini tayyorlab ko'rsatish (raqam bo'lsa o'shani)
+- "hikoya" — 365 hikoyadan birini tayyorlab ko'rsatish (raqam aytilsa o'shani)
+- "dars" — kurs darsini tayyorlab ko'rsatish (raqam aytilsa o'shani)
 - "yangilik" — yangi yangilik posti tayyorlash
-- "haftalik" — kelgusi 7 kunlik postlar ro'yxati
-- "holat" — hozirgi holat
-- "yordam" — buyruqlar ro'yxati
-- "javob" — amal kerak emas, shunchaki javob berish kerak
+- "haftalik" — kelgusi 7 kunda nima chiqishi ro'yxati
+- "holat" — qaysi hikoya/darsda turganimiz
+- "yordam" — nima qila olishimni tushuntirish
+- "ochir" — kanalga chiqib ketgan oxirgi postni o'chirish
+- "tahrirla" — kanalga chiqib ketgan oxirgi postni o'chirib, yangi rasm
+  bilan qaytadan tayyorlash (rasm sig'masa, chiroyli chiqmasa, yoqmasa)
+- "sozla" — doimiy sozlamani o'zgartirish va GitHub'ga saqlash.
+  Bu "bundan keyin doim shunday bo'lsin" degan gaplar uchun.
+  "kalit" va "qiymat" maydonlarini ham to'ldir. Mavjud kalitlar:
+{sozlama_royxat}
+- "javob" — hech narsa qilish shart emas, shunchaki gapga javob berish
+
+ISHONCH (0-100) — nima demoqchi ekanini qanchalik aniq tushunding:
+- 80-100: aniq tushundim, darhol bajarsa bo'ladi
+- 40-79: taxmin qilyapman, lekin adashishim mumkin
+- 0-39: umuman tushunmadim
 
 QOIDALAR:
-- Admin biror narsani o'zgartirishni so'rasa yoki savol bersa — "javob"
-  tanla va "javob" maydonida aniq, qisqa javob yoz
-- Agar so'ralgan narsa allaqachon qilingan bo'lsa — shuni ayt
-- Agar bot qila olmaydigan narsa so'ralsa — buni ochiq ayt va qayerda
-  o'zgartirilishini tushuntir
-- Hech qachon "tushunmadim" deb javob berma
-- O'zbek tilida, lotin yozuvida, do'stona va qisqa yoz
+- Admin postdagi rasm yoki ko'rinishdan norozi bo'lsa ("sig'mayapti",
+  "chiroyli emas", "boshqasini qo'y", "xato chiqibdi") — bu KANALGA
+  ALLAQACHON CHIQQAN oxirgi post haqida. Faqat rasm muammosi bo'lsa
+  "tahrirla", butunlay kerakmas bo'lsa "ochir"
+- ISHONCH 80 dan past bo'lsa — "savol" maydoniga o'z so'zlaring bilan,
+  oddiy tilda aniqlashtiruvchi savol yoz. Masalan:
+  "Kanaldagi oxirgi postning rasmini qayta chizib berayinmi?"
+  Savol bitta bo'lsin va unga "ha" deb javob berish oson bo'lsin
+- HECH QACHON "tushunmadim", "buyruq bilan urinib ko'ring" dema.
+  Tushunmasang — o'z so'zlaring bilan qayta so'ra
+- Buyruq nomlarini (/hikoya, /dars) adminga aytma — u ularni bilishi
+  shart emas, oddiy gap bilan gaplashaveradi
+- O'zbek tilida, lotin yozuvida, do'stona, qisqa va aniq yoz
 - HTML: faqat <b> va <i>. Markdown ishlatma
 
 Javobni FAQAT shu JSON ko'rinishida ber:
-{{"amal": "hikoya|dars|yangilik|haftalik|holat|yordam|javob",
+{{"amal": "{'|'.join(AMALLAR)}",
  "raqam": null yoki son,
- "javob": "javob matni (amal 'javob' bo'lsa to'ldiriladi, aks holda qisqa tasdiq)"}}"""
-    d = gem_json(prompt, temperature=0.5, attempts=2)
-    return (d.get("amal") or "javob"), d.get("raqam"), (d.get("javob") or "")
+ "ishonch": 0 dan 100 gacha son,
+ "javob": "amal 'javob' bo'lsa — javob matni; aks holda qisqa tasdiq",
+ "savol": "ishonch 80 dan past bo'lsa — aniqlashtiruvchi savol, aks holda bo'sh",
+ "kalit": "amal 'sozla' bo'lsa — sozlama kaliti, aks holda bo'sh",
+ "qiymat": "amal 'sozla' bo'lsa — yangi qiymat, aks holda bo'sh"}}"""
+    d = gem_json(prompt, temperature=0.4, attempts=2)
+    amal = (d.get("amal") or "javob").strip().lower()
+    if amal not in AMALLAR:
+        amal = "javob"
+    try:
+        ishonch = int(float(d.get("ishonch", 0)))
+    except (TypeError, ValueError):
+        ishonch = 0
+    try:
+        raqam = int(d["raqam"]) if d.get("raqam") not in (None, "") else None
+    except (TypeError, ValueError):
+        raqam = None
+    kalit = (d.get("kalit") or "").strip().lower()
+    if kalit not in SOZLAMA_KALITLAR:
+        kalit = ""
+    return {"amal": amal, "raqam": raqam, "ishonch": ishonch,
+            "javob": (d.get("javob") or "").strip(),
+            "savol": (d.get("savol") or "").strip(),
+            "kalit": kalit, "qiymat": (d.get("qiymat") or "").strip()}
 
 
-def buyruqni_bajar(buyruq, raqam):
+# Sun'iy intellekt umuman ishlamay qolganda ishlatiladigan oddiy tushunish.
+# Bu ham "tushunmadim" demaydi — taxmin qilib, tasdiq so'raydi.
+_KALIT_SOZLAR = [
+    (("o'chir", "ochir", "uchir", "olib tashla", "yo'q qil", "yoq qil",
+      "kerakmas", "kerak emas"), "ochir"),
+    (("tahrir", "qayta qil", "qaytadan", "boshqa rasm", "sig'ma", "sigma",
+      "almashtir", "o'zgartir", "ozgartir", "tuzat", "chiroyli emas"), "tahrirla"),
+    (("hikoya", "hikoyani", "story"), "hikoya"),
+    (("dars", "kurs"), "dars"),
+    (("yangilik", "xabar", "news"), "yangilik"),
+    (("haftalik", "hafta", "kelgusi", "kelasi"), "haftalik"),
+    (("holat", "qayerda", "qaysi kun", "nechanchi", "statistika"), "holat"),
+    (("yordam", "nima qila", "yordamchi", "help", "start"), "yordam"),
+]
+
+_TASDIQ_SOZLAR = ("ha", "xa", "mayli", "bo'ladi", "boladi", "to'g'ri", "togri",
+                  "shu", "aynan", "qil", "davom", "ok", "okay", "zo'r", "zor")
+_RAD_SOZLAR = ("yo'q", "yoq", "kerakmas", "kerak emas", "bekor", "shart emas")
+
+
+def oddiy_tushun(matn):
+    """Gemini ham, Grok ham ishlamaganda — kalit so'zlar bo'yicha taxmin."""
+    m = " " + (matn or "").lower().strip() + " "
+    kut = _KUTILMOQDA[0]
+    if kut:
+        if any(s in m for s in _TASDIQ_SOZLAR):
+            return {"amal": kut["amal"], "raqam": kut.get("raqam"),
+                    "ishonch": 90, "javob": "Bo'ldi, qilaman.", "savol": ""}
+        if any(s in m for s in _RAD_SOZLAR):
+            return {"amal": "javob", "raqam": None, "ishonch": 90,
+                    "javob": "Tushundim, tegmadim.", "savol": ""}
+    raqam = None
+    mr = re.search(r"\b(\d{1,3})\b", m)
+    if mr:
+        raqam = int(mr.group(1))
+    for sozlar, amal in _KALIT_SOZLAR:
+        if any(s in m for s in sozlar):
+            nomi = {"hikoya": "hikoyani ko'rsatish",
+                    "dars": "kurs darsini ko'rsatish",
+                    "yangilik": "yangilik posti tayyorlash",
+                    "haftalik": "kelgusi hafta ro'yxatini berish",
+                    "holat": "hozirgi holatni aytish",
+                    "ochir": "kanaldagi oxirgi postni o'chirish",
+                    "tahrirla": "oxirgi postni qayta tayyorlash",
+                    "yordam": "nima qila olishimni aytish"}[amal]
+            return {"amal": amal, "raqam": raqam, "ishonch": 55, "javob": "",
+                    "savol": f"Sizni to'g'ri tushundimmi — {nomi} kerakmi?"}
+    return {"amal": "javob", "raqam": None, "ishonch": 100, "savol": "",
+            "javob": "Hozir aqlim ishlamayapti (API javob bermayapti), "
+                     "lekin sizni eshitdim. Biroz aniqroq aytsangiz — "
+                     "masalan post chiqaraymi, o'chiraymi yoki holatni "
+                     "aytaymi — bajaraman."}
+
+
+def _tasdiq_ochir(entry, tahrir):
+    """Oxirgi postni o'chirish/tahrirlashdan oldin bir tugma bilan
+    tasdiqlash so'raydi — tasodifan noto'g'ri tushunilsa ham hech narsa
+    darhol o'chib ketmaydi."""
+    tok = _tok()
+    _PENDING[tok] = {"_ochir_entry": entry, "_tahrir": tahrir}
+    sarlavha = entry.get("title") or entry.get("topic") or "(nomsiz)"
+    amal_matni = ("o'chirib, qaytadan tayyorlab berayinmi" if tahrir
+                  else "kanaldan o'chirib tashlayinmi")
+    kb = {"inline_keyboard": [[
+        {"text": "✅ Ha", "callback_data": f"ochirha:{tok}"},
+        {"text": "❌ Yo'q", "callback_data": f"ochiryoq:{tok}"},
+    ]]}
+    tg_msg(TELEGRAM_ADMIN_ID,
+           f"Kanaldagi oxirgi post:\n<b>{sarlavha}</b>\n"
+           f"({entry.get('date', '')})\n\nShuni {amal_matni}?", markup=kb)
+
+
+def _tasdiq_sozla(kalit, qiymat):
+    """Sozlamani o'zgartirishdan oldin tasdiq so'raydi."""
+    tok = _tok()
+    _PENDING[tok] = {"_sozla": (kalit, qiymat)}
+    eski = sozlama(kalit) or "(belgilanmagan)"
+    kb = {"inline_keyboard": [[
+        {"text": "\u2705 Ha, saqla", "callback_data": f"sozha:{tok}"},
+        {"text": "\u274c Yo'q", "callback_data": f"sozyoq:{tok}"},
+    ]]}
+    tg_msg(TELEGRAM_ADMIN_ID,
+           f"<b>{SOZLAMA_KALITLAR[kalit]}</b>\n\n"
+           f"Hozir: <i>{html.escape(eski)}</i>\n"
+           f"Yangi: <b>{html.escape(qiymat)}</b>\n\n"
+           f"GitHub'ga saqlab qo'yayinmi? Bundan keyin doim shunday bo'ladi.",
+           markup=kb)
+
+
+def buyruqni_bajar(buyruq, raqam, kalit="", qiymat=""):
+    if buyruq == "sozla":
+        if not kalit or not qiymat:
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   "Nimani o'zgartirishni aniq aytolmadim. Masalan shunday "
+                   "deng: \"rasm pastidagi yozuvni @aqlustaxona qil\" yoki "
+                   "\"ertalabki postni 09:00 da chiqar\".")
+            return
+        _tasdiq_sozla(kalit, qiymat)
+        return
     if buyruq == "yordam":
         tg_msg(TELEGRAM_ADMIN_ID, YORDAM)
         return
@@ -1619,6 +2168,13 @@ def buyruqni_bajar(buyruq, raqam):
     if buyruq == "haftalik":
         tg_msg(TELEGRAM_ADMIN_ID, "⏳ Tayyorlanmoqda...")
         weekly_preview()
+        return
+    if buyruq in ("ochir", "tahrirla"):
+        entry = hist_last()
+        if not entry:
+            tg_msg(TELEGRAM_ADMIN_ID, "Hali kanalga chiqqan post yo'q.")
+            return
+        _tasdiq_ochir(entry, tahrir=(buyruq == "tahrirla"))
         return
     if buyruq in ("hikoya", "dars", "yangilik"):
         tg_msg(TELEGRAM_ADMIN_ID, "⏳ Post tayyorlanmoqda — 1-2 daqiqa...")
@@ -1637,34 +2193,56 @@ def matnni_ishla(matn):
     m = (matn or "").strip()
     if not m:
         return
-    javob = ""
+    # Boshidagi "/" ni olib tashlaymiz — bot uchun buyruq ham oddiy gap.
     if m.startswith("/"):
-        qism = m[1:].split()
-        amal = qism[0].lower().split("@")[0]
-        raqam = qism[1] if len(qism) > 1 and qism[1].isdigit() else None
-        amal = {"start": "yordam", "help": "yordam"}.get(amal, amal)
-        if amal not in ("hikoya", "dars", "yangilik", "haftalik",
-                        "holat", "yordam"):
-            amal = "yordam"
-    else:
-        try:
-            amal, raqam, javob = suhbat(m)
-        except Exception as e:
-            log(f"[listen] suhbat xatosi: {e}")
-            tg_msg(TELEGRAM_ADMIN_ID,
-                   f"⚠️ Gemini javob bermadi: <code>{str(e)[:250]}</code>\n\n"
-                   f"Buyruq bilan urinib ko'ring: /yordam")
-            return
-    if javob and amal == "javob":
-        tg_msg(TELEGRAM_ADMIN_ID, javob)
-        return
-    if javob:
-        tg_msg(TELEGRAM_ADMIN_ID, javob)
+        m = m[1:].replace("@", " ").strip()
+        m = {"start": "salom", "help": "nima qila olasan"}.get(m.lower(), m)
+    _tarix_qosh("admin", m)
+    kut = _KUTILMOQDA[0]
+    # Adminning har bir gapi GitHub kundaligiga tushadi
+    gh_havola = gh_suhbat_yoz("Admin", m)
+
     try:
-        buyruqni_bajar(amal, raqam)
+        d = suhbat(m)
+    except Exception as e:
+        # Sun'iy intellekt ishlamadi — lekin bot baribir javob beradi.
+        log(f"[listen] suhbat xatosi: {e}")
+        d = oddiy_tushun(m)
+
+    amal, raqam = d["amal"], d.get("raqam")
+    ishonch, javob, savol = d["ishonch"], d.get("javob", ""), d.get("savol", "")
+
+    izoh = ("\n\n<i>\U0001F4DD GitHub kundaligiga yozib qo'ydim.</i>"
+            if gh_havola else "")
+    if amal == "javob":
+        _KUTILMOQDA[0] = None
+        _javob_ber((javob or "Eshitdim sizni. Nima qilay?") + izoh)
+        return
+
+    # Aniq tushunmadim — o'z so'zim bilan qayta so'rayman.
+    if ishonch < 80 and savol:
+        _KUTILMOQDA[0] = {"amal": amal, "raqam": raqam, "savol": savol,
+                          "kalit": d.get("kalit", ""),
+                          "qiymat": d.get("qiymat", "")}
+        _javob_ber(savol)
+        return
+
+    # Tasdiq kutilayotgan edi — yetishmagan ma'lumotni o'shandan olamiz
+    kalit, qiymat = d.get("kalit", ""), d.get("qiymat", "")
+    if kut and kut.get("amal") == amal:
+        kalit = kalit or kut.get("kalit", "")
+        qiymat = qiymat or kut.get("qiymat", "")
+        if raqam is None:
+            raqam = kut.get("raqam")
+    _KUTILMOQDA[0] = None
+    if javob:
+        _javob_ber(javob)
+    try:
+        buyruqni_bajar(amal, raqam, kalit, qiymat)
     except Exception as e:
         log(f"[listen] xato: {e}")
-        tg_msg(TELEGRAM_ADMIN_ID, f"❌ Xato: <code>{str(e)[:400]}</code>")
+        _javob_ber(f"Buni qila olmadim: <code>{str(e)[:300]}</code>\n"
+                   f"Boshqacha aytib ko'ring yoki keyinroq urinib ko'raman.")
 
 
 def tugmani_ishla(cq):
@@ -1673,8 +2251,66 @@ def tugmani_ishla(cq):
     post = _PENDING.get(tok)
     mid = (cq.get("message") or {}).get("message_id")
     if not post:
-        tg_answer(cq["id"], "Bu post eskirgan.")
+        tg_answer(cq["id"], "Bu so'rov eskirgan.")
         return
+
+    if isinstance(post, dict) and "_sozla" in post:
+        _PENDING.pop(tok, None)
+        if mid:
+            tg_clear_markup(TELEGRAM_ADMIN_ID, mid)
+        if amal == "sozyoq":
+            tg_answer(cq["id"], "Bekor qilindi.")
+            _javob_ber("Mayli, o'zgartirmadim.")
+            return
+        tg_answer(cq["id"], "Saqlanmoqda...")
+        kalit, qiymat = post["_sozla"]
+        try:
+            havola = gh_sozlama_yoz(kalit, qiymat)
+        except Exception as e:
+            _javob_ber(f"GitHub'ga saqlay olmadim: <code>{str(e)[:300]}</code>")
+            return
+        if havola:
+            _javob_ber(f"\u2705 Saqladim. Bundan keyin doim shunday bo'ladi.\n"
+                       f"GitHub'ga yozildi: <a href=\"{havola}\">commit</a>")
+        else:
+            _javob_ber("\u2705 Saqladim. (GitHub ulanmagan — faqat shu "
+                       "seansda amal qiladi.)")
+        return
+
+    if isinstance(post, dict) and "_ochir_entry" in post:
+        _PENDING.pop(tok, None)
+        if mid:
+            tg_clear_markup(TELEGRAM_ADMIN_ID, mid)
+        if amal == "ochiryoq":
+            tg_answer(cq["id"], "Bekor qilindi.")
+            tg_msg(TELEGRAM_ADMIN_ID, "Hech narsa o'zgarmadi.")
+            return
+        tg_answer(cq["id"], "O'chirilmoqda...")
+        entry = post["_ochir_entry"]
+        tahrir = post["_tahrir"]
+        try:
+            postni_ochir(entry)
+        except Exception as e:
+            tg_msg(TELEGRAM_ADMIN_ID, f"❌ O'chirishda xato: {str(e)[:300]}")
+            return
+        if not tahrir:
+            tg_msg(TELEGRAM_ADMIN_ID, "✅ Kanaldan o'chirildi.")
+            return
+        tg_msg(TELEGRAM_ADMIN_ID, "⏳ Yangisi tayyorlanmoqda — 1-2 daqiqa...")
+        try:
+            tur = entry.get("tur")
+            if tur == "stories" and entry.get("day"):
+                yangi = build_story_post(entry["day"])
+            elif tur == "kurs" and entry.get("dars"):
+                yangi = build_kurs_post(entry["dars"])
+            else:
+                yangi = build_post([])
+            _yubor_preview(yangi, "✅ Eskisi o'chirildi. Yangi variant tayyor — "
+                                  "nima qilay?")
+        except Exception as e:
+            tg_msg(TELEGRAM_ADMIN_ID, f"❌ Yangisi tayyorlanmadi: {str(e)[:400]}")
+        return
+
     if amal == "del":
         _PENDING.pop(tok, None)
         tg_answer(cq["id"], "Bekor qilindi.")
@@ -1884,6 +2520,10 @@ def doctor():
 
     print(f"\n   Gemini kalitlari: {len(GEMINI_KEYS)} ta "
           f"({'zaxira bor' if len(GEMINI_KEYS) > 1 else 'zaxira YO`Q'})")
+    print(f"   Matn modeli: {GEMINI_TEXT_MODEL} "
+          f"(zaxira: {', '.join(TEXT_MODEL_FALLBACKS)})")
+    print(f"   Grok (eng oxirgi zaxira): "
+          f"{'bor, ' + str(len(GROK_KEYS)) + ' ta kalit' if GROK_KEYS else 'yo`q'}")
 
     # 5. Kontent jadvali
     print(f"\n5) KONTENT JADVALI (slot: {SLOT})")
