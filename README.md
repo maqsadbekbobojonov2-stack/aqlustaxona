@@ -1,65 +1,71 @@
 # AQLUSTAXONA — kunlik post boti
 
-`@aqlustaxonastartap` kanaliga har kuni bitta post chiqaradi. Ikkita rejimi bor.
+`@aqlustaxonastartap` kanaliga har kuni **ikkita** post chiqaradi.
 
-| Rejim | `POST_SOURCE` | Nima qiladi |
+| Vaqt | Nima chiqadi | Preview |
 |---|---|---|
-| **365 hikoya** (hozirgi) | `stories` | `stories/` papkasidagi tayyor hikoyani navbat bilan chiqaradi |
-| AI post | `ai` | Gemini har kuni yangi post yozadi (eski rejim) |
+| **08:45** | 365 kunlik startap hikoyalaridan navbatdagisi | yo'q |
+| **19:45** | Startap kursi va yangilik **almashib** | faqat yangilikka |
+| **Yakshanba 20:30** | Kelgusi 7 kunlik postlar adminga yuboriladi | — |
 
-Rejimni almashtirish: **Settings → Secrets and variables → Actions → Variables**
-bo'limida `POST_SOURCE` o'zgaruvchisini `stories` yoki `ai` qilib qo'ying.
-Hech narsa qo'ymasangiz — `stories` ishlaydi.
+Har bir postga Gemini (`gemini-2.5-flash-image`) rasm chizadi va ElevenLabs
+qisqa audio o'qiydi.
 
-## 365 hikoya rejimi
-
-`stories/001.html` … `stories/365.html` — Word fayldan olingan 365 ta tayyor post.
-Matn ichida `KUN 001` kabi belgilar **yo'q**, faqat postning o'zi.
-Format Telegram HTML (`<b>`, `<i>`, `<a>`), o'rtacha ~1840 belgi.
-
-Kunlik oqim:
-
-1. Navbatdagi hikoya `stories_state.json` dagi `last_sent` bo'yicha olinadi.
-2. Gemini shu hikoyaga **rasm** chizadi, ElevenLabs qisqa **audio** o'qiydi.
-3. 19:35 da adminga preview keladi.
-4. 19:45 da kanalga chiqadi va `last_sent` bittaga oshadi.
-
-**Hikoya matni hech qachon o'zgartirilmaydi** — AI uni qayta yozmaydi, QA
-tekshiruvidan o'tkazmaydi. Preview'dagi «🔄 Rasm/audioni qayta qilish» tugmasi
-faqat rasm va audioni yangilaydi.
-
-### Foydali amallar
-
-- **Aniq kunni chiqarish:** Actions → *Kunlik post* → **Run workflow** →
-  `day` maydoniga raqam yozing (masalan `42`).
-- **Qaysi kundan boshlash:** `stories_state.json` dagi `last_sent` ni
-  o'zgartiring. `0` — birinchi kundan.
-- **Sinab ko'rish:** `preview_only` ni belgilang — post adminga keladi, kanalga
-  chiqmaydi.
-- **Holatni ko'rish:** `doctor` ni belgilang — nechta hikoya bor, oxirgisi qaysi
-  kun edi, keyingisi nima.
-
-Lokal sinov:
-
-```bash
-POST_SOURCE=stories python bot.py --day 1 --preview-only --now
-```
-
-## Fayllar
+## Kontent
 
 | Fayl | Nima |
 |---|---|
-| `bot.py` | Butun bot — sozlamalar, agentlar, oqim |
-| `stories/001.html`…`365.html` | 365 ta tayyor post |
-| `stories/index.json` | Ro'yxat: raqam, sarlavha, belgi soni |
-| `stories_state.json` | Oxirgi chiqqan kun |
-| `history.json` | Chiqqan postlar tarixi |
-| `.github/workflows/daily_post.yml` | Kunlik jadval |
+| `stories.json` | 365 ta tayyor hikoya. Matn AI tomonidan o'zgartirilmaydi |
+| `kurs.json` | 96 ta startap darsi, aniq tartibda. Matn o'zgartirilmaydi |
+| yangilik | jonli — Google qidiruvi orqali so'nggi 7 kun xabarlari |
+
+Kurs bloklari: g'oya → mijoz va bozor → MVP → sotuv → narx → marketing →
+mahsulot → raqamlar → huquq va soliq → jamoa → sarmoya → operatsiya.
+
+Kurs haftada 3-4 marta chiqadi, ya'ni 96 dars ≈ 7 oyga yetadi.
+Hikoyalar har kuni — 365 kun.
+
+## Haftalik ko'rik
+
+Har yakshanba kechqurun adminga keladi:
+
+1. Kelgusi 7 kunlik jadval (qaysi kuni nima chiqishi)
+2. O'sha haftaning hikoya va dars matnlari to'liq
+
+Yangilik bu ro'yxatga kirmaydi — u har safar chiqishidan 10 daqiqa oldin
+alohida preview bo'lib keladi, «🔄 Qayta qilish» tugmasi bilan.
+
+## Qo'lda ishga tushirish
+
+Actions → *Kunlik post* → **Run workflow**:
+
+- `slot` — `ertalab` (hikoya) yoki `kechqurun` (kurs/yangilik)
+- `day` — aniq hikoya raqami
+- `dars` — aniq kurs darsi raqami
+- `weekly` — haftalik ko'rikni hozir yuborish
+- `doctor` — sozlamalarni tekshirish
+- `preview_only` — kanalga chiqarmasdan faqat adminga yuborish
 
 ## Sozlamalar
 
 **Secrets:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHANNEL`, `TELEGRAM_ADMIN_ID`,
 `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`
 
-**Variables:** `POST_SOURCE` (`stories`), `PUBLISH_TIME` (`19:45`),
-`RUBRIC`, `DRY_RUN`
+**Variables** (ixtiyoriy): `ERTALAB_VAQT` (08:45), `KECHQURUN_VAQT` (19:45),
+`POST_SOURCE` (bo'sh — jadval bo'yicha; `hikoya`/`kurs`/`yangilik`/`ai` bilan
+majburan bitta tur), `DRY_RUN`
+
+## Holat
+
+`stories_state.json`:
+
+- `last_sent` — oxirgi chiqqan hikoya raqami
+- `kurs_oxirgi` — oxirgi chiqqan dars raqami
+- `oxirgi_kechki` — oxirgi kechki post turi (`kurs` yoki `yangilik`)
+
+Boshqa joydan boshlash uchun shu raqamlarni o'zgartiring.
+
+## Uslub
+
+Kanal uslubi `bot.py` ning 2-qismida (`STYLE_GUIDE`, `EXAMPLES`,
+`IMAGE_STYLE`). Faqat shu matnlarni tahrirlang — qolgan kodga tegish shart emas.

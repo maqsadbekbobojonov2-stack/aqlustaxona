@@ -80,14 +80,24 @@ PREVIEW_LEAD = _int("PREVIEW_LEAD_MINUTES", 10)
 TZ = ZoneInfo(os.getenv("TIMEZONE", "").strip() or "Asia/Tashkent")
 RUBRIC = os.getenv("RUBRIC", "").strip() or "Claude maslahatlar"
 
-# Kontent manbai:
-#   "stories" — stories/ papkasidagi 365 ta tayyor hikoya (kuniga bittadan)
-#   "ai"      — Gemini har kuni yangi post yozadi (eski rejim)
-POST_SOURCE = (os.getenv("POST_SOURCE", "").strip().lower() or "stories")
+# ── Kontent jadvali ──────────────────────────────────────────────
+# SLOT:
+#   "ertalab"   -> 365 hikoyadan navbatdagisi (har kuni)
+#   "kechqurun" -> kurs va yangilik almashib
+# POST_SOURCE bilan majburan bitta turni tanlash mumkin:
+#   hikoya | kurs | yangilik | ai
+SLOT = (os.getenv("SLOT", "").strip().lower() or "kechqurun")
+POST_SOURCE = os.getenv("POST_SOURCE", "").strip().lower()
+
 STORIES_DIR = ROOT / "stories"
 STORIES_JSON = ROOT / "stories.json"
 STORIES_STATE = ROOT / "stories_state.json"
 STORIES_TOTAL = 365
+KURS_JSON = ROOT / "kurs.json"
+
+# Preview faqat yangilik uchun keladi — hikoya va kurs matni oldindan
+# tayyor va haftalik ko'rikdan o'tgan.
+PREVIEW_TURLARI = {"yangilik", "ai"}
 MAX_REDO = _int("MAX_REDO", 5)
 DRY_RUN = os.getenv("DRY_RUN", "0").strip() == "1"
 
@@ -104,10 +114,10 @@ REDO_DATA = "redo"
 
 STYLE_GUIDE = """
 ## Auditoriya
-MUTLAQ BOSHLOVCHILAR. Claude'ni endi ochgan yoki umuman ochib ko'rmagan odamlar.
-Ular "prompt", "kontekst", "token" kabi so'zlarni bilmasligi mumkin.
+O'zbekistonlik yoshlar: biznes boshlamoqchi, endigina boshlagan yoki startap
+mavzusi qiziqtiradiganlar. Ular tajribali tadbirkor EMAS.
 Hech qanday atamani izohsiz ishlatmang — birinchi marta qavs ichida oddiy tilda
-tushuntiring. Masalan: "kontekst (ya'ni Claude eslab turadigan suhbat qismi)".
+tushuntiring. Masalan: "MVP (ya'ni eng oddiy ishlaydigan mahsulot)".
 
 ## Til
 - O'zbek tili, lotin yozuvi. To'g'ri apostrof: o', g'
@@ -140,7 +150,7 @@ Faqat <b>, <i>, <code> teglari. Markdown (**, ##, *) ISHLATILMAYDI.
 - Har abzas boshiga emoji qo'yish — man etiladi
 - Reklama, obuna so'rash, "do'stlaringizga ulashing" — yo'q
 - To'qib chiqarilgan statistika yoki raqamlar — yo'q
-- Claude'ning haqiqiy bo'lmagan imkoniyatlarini va'da qilish — yo'q
+- Tasdiqlanmagan xabarni haqiqat sifatida berish — yo'q
 - Siyosat, din, sog'liq bo'yicha maslahat — yo'q
 """
 
@@ -199,24 +209,18 @@ O'rganamiz: "menga yoqdi" — muallif fikrini bildiradi, lekin haqiqat sifatida
 tiqishtirmaydi.
 
 --- Etalon post (aynan shunday chiqishi kerak) ---
-Claude javoblari umumiy chiqyaptimi? Sabab bitta
+Birinchi mijozni qayerdan topish kerak
 
-Ko'pchilik Claude'ga "menga marketing rejasi tuzib ber" deb yozadi va javob
-quruq chiqqanidan hafsalasi pir bo'ladi.
+Ko'pchilik reklama byudjeti yig'ishni kutadi va shu bilan oylar o'tadi.
 
-Muammo Claude'da emas. U sizning kim ekanligingizni bilmaydi.
+Menimcha xato shundaki, birinchi mijozlar reklamadan kelmaydi. Ular tanish
+doiradan keladi — do'stlar, ularning tanishlari, sohaviy guruhlar.
 
-Bitta gap qo'shsangiz, javob butunlay o'zgaradi — o'zingiz haqingizda kontekst
-bering. Ya'ni kim uchun, qanday byudjet bilan, qaysi bozorda.
+Bugun qilinadigan ish oddiy: ellikta ism yozing va o'ntasiga shaxsan yozing.
+Xabar reklama bo'lmasin, oddiy savol bo'lsin.
 
-Buni sinab ko'ring:
-
-<code>Men Toshkentda kichik gulchilik do'koni ochganman. Oyiga 3 mln so'm
-reklama byudjetim bor. Mijozlarim asosan 25-40 yoshli ayollar. Shu sharoitga
-mos 1 oylik marketing rejasi tuz.</code>
-
-Farqni o'zingiz ko'rasiz. Claude sehrgar emas — u siz tushuntirgan darajada
-yordam beradi.
+Bittasi javob bersa — sizda birinchi suhbat bor. Reklama esa keyin, natija
+ko'ringandan so'ng.
 """
 
 IMAGE_STYLE = """
@@ -319,6 +323,22 @@ def stories_state():
         return {"last_sent": 0, "sent": []}
 
 
+def pick_source():
+    """Bugungi post turini aniqlaydi."""
+    if POST_SOURCE in ("hikoya", "stories"):
+        return "hikoya"
+    if POST_SOURCE in ("kurs", "curriculum"):
+        return "kurs"
+    if POST_SOURCE in ("yangilik", "news"):
+        return "yangilik"
+    if POST_SOURCE == "ai":
+        return "ai"
+    if SLOT == "ertalab":
+        return "hikoya"
+    # kechqurun — kurs va yangilik almashadi
+    return "yangilik" if stories_state().get("oxirgi_kechki") == "kurs" else "kurs"
+
+
 def stories_next_day():
     """Navbatdagi kun raqami. FORCE_DAY berilsa — o'sha kun."""
     forced = os.getenv("FORCE_DAY", "").strip()
@@ -355,6 +375,114 @@ def stories_all():
     if not _STORIES_CACHE:
         raise RuntimeError("Hikoyalar topilmadi: stories.json ham, stories/ ham yo'q")
     return _STORIES_CACHE
+
+
+_KURS_CACHE = {}
+
+
+def kurs_all():
+    if not _KURS_CACHE:
+        if not KURS_JSON.exists():
+            raise RuntimeError("kurs.json topilmadi")
+        d = json.loads(KURS_JSON.read_text(encoding="utf-8"))
+        for k, v in (d.get("posts") or {}).items():
+            _KURS_CACHE[int(k)] = v.strip()
+    return _KURS_CACHE
+
+
+def kurs_next():
+    forced = os.getenv("FORCE_KURS", "").strip()
+    if forced:
+        return int(forced)
+    return stories_state().get("kurs_oxirgi", 0) + 1
+
+
+def kurs_mark_sent(n, message_id=None):
+    st = stories_state()
+    st["kurs_oxirgi"] = max(st.get("kurs_oxirgi", 0), n)
+    st["oxirgi_kechki"] = "kurs"
+    STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
+                             encoding="utf-8")
+
+
+def yangilik_mark_sent():
+    st = stories_state()
+    st["oxirgi_kechki"] = "yangilik"
+    STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
+                             encoding="utf-8")
+
+
+def build_kurs_post(n=None):
+    """kurs.json dagi navbatdagi darsni post qilib beradi. Matn o'zgarmaydi."""
+    all_ = kurs_all()
+    n = n or kurs_next()
+    if n > len(all_):
+        raise RuntimeError(f"Kurs tugadi ({len(all_)} dars). "
+                           f"stories_state.json dagi kurs_oxirgi ni 0 qiling.")
+    text = all_[n]
+    title = strip_tags(text.split("\n", 1)[0]).strip()
+    log(f"=== Kurs {n}/{len(all_)} — {title} ===")
+    post = {
+        "source": "kurs", "kurs_n": n, "title": title, "text": text,
+        "image_idea": story_image_idea(title, text),
+        "audio_script": story_audio_script(text, title),
+        "topic": {"topic": f"Startap kursi · {n}-dars · {title}"},
+    }
+    _attach_media(post)
+    return post
+
+
+def topic_yangilik(avoid):
+    """Google qidiruvi orqali so'nggi haftaning yangiligini topadi."""
+    used = "\n".join(f"- {t}" for t in (hist_topics(30) + avoid)) or "(bo'sh)"
+    bugun = now().strftime("%Y-%m-%d")
+    prompt = f"""Sen startap va texnologiya yangiliklari muharririsan.
+Bugungi sana: {bugun}.
+
+Google qidiruvidan foydalanib, SO'NGGI 7 KUN ichida yuz bergan va
+O'zbekistonlik boshlovchi tadbirkorga foydali bo'ladigan 5 ta yangilik top.
+
+Mavzular: sun'iy intellekt vositalari, yangi mahsulot va imkoniyatlar,
+startap sarmoyalari, O'zbekistondagi biznes va IT yangiliklari, jahon
+bozoridagi muhim o'zgarishlar, tadbirkorga tegishli qonun o'zgarishlari.
+
+QAT'IY TALABLAR:
+- Faqat HAQIQIY, tekshirilgan xabar. To'qima yoki taxmin YO'Q
+- Sana so'nggi 7 kun ichida bo'lsin
+- Har bir yangilikda manba nomi va sana bo'lsin
+- Har bir yangilik uchun "bu tadbirkorga nima beradi" degan javob bo'lsin
+- Siyosat, urush, mojaro mavzulari YO'Q
+- Quyidagilar allaqachon chiqqan, ularni BERMA:
+{used}
+
+Javobni FAQAT shu JSON ko'rinishida ber:
+{{"topics": [{{"topic": "yangilik sarlavhasi o'zbekcha 4-9 so'z",
+ "why": "tadbirkorga nima beradi, 1 gap",
+ "key_facts": ["fakt (manba, sana)", "fakt 2", "fakt 3"]}}]}}"""
+    data = gem_json(prompt, search=True, temperature=0.9)
+    topics = data.get("topics") if isinstance(data, dict) else data
+    if not topics:
+        raise RuntimeError("Yangilik topilmadi")
+    seen = {t.lower().strip() for t in hist_topics(30) + avoid}
+    for t in topics:
+        if t.get("topic", "").lower().strip() not in seen:
+            log(f"[yangilik] {t['topic']}")
+            return t
+    return topics[0]
+
+
+def _attach_media(post):
+    try:
+        post["image_path"] = agent3_image(post)
+    except Exception as e:
+        log(f"[rasm] chizilmadi: {e}")
+        post["image_path"] = None
+    try:
+        post["voice_path"] = agent4_voice(post)
+    except Exception as e:
+        log(f"[audio] yozilmadi: {e}")
+        post["voice_path"] = None
+    return post
 
 
 def story_read(day):
@@ -425,16 +553,7 @@ def build_story_post(day=None):
         "audio_script": story_audio_script(text, title),
         "topic": {"topic": f"365-hikoya · {day}-kun · {title}"},
     }
-    try:
-        post["image_path"] = agent3_image(post)
-    except Exception as e:
-        log(f"[rasm] chizilmadi: {e}")
-        post["image_path"] = None
-    try:
-        post["voice_path"] = agent4_voice(post)
-    except Exception as e:
-        log(f"[audio] yozilmadi: {e}")
-        post["voice_path"] = None
+    _attach_media(post)
     return post
 
 
@@ -841,7 +960,7 @@ Talablar:
 - O'zbek tili, lotin yozuvi, to'g'ri apostrof
 - Faqat <b>, <i>, <code>. Markdown YO'Q
 - Hashtag YO'Q. Emoji eng ko'pi 1 ta
-- Ichida Claude'ga yoziladigan aniq namuna matn <code> ichida bo'lsin
+- Ichida aniq misol, raqam yoki qadam bo'lsin (umumiy gap emas)
 - Yakunida bugun qilib ko'rish mumkin bo'lgan aniq harakat
 
 Javobni FAQAT shu JSON ko'rinishida ber:
@@ -973,8 +1092,8 @@ Mavzu: {topic.get('topic')}
 Tekshir:
 1. Uslub qo'llanmasiga mos keladimi (struktura, ohang, emoji/hashtag qoidalari)
 2. Til to'g'rimi — o'zbek lotin, apostroflar, grammatika, rus so'zlari yo'qmi
-3. Mutlaq boshlovchi tushunadimi — izohsiz atama qolmaganmi
-4. Faktlar to'g'rimi — Claude'ning haqiqiy imkoniyatlari haqidami
+3. Boshlovchi tushunadimi — izohsiz atama qolmaganmi
+4. Faktlar tekshirilganmi — to'qib chiqarilgan raqam yo'qmi
 5. Aniq foyda bormi — o'quvchi bugun nimadir qila oladimi
 6. Faqat <b>, <i>, <code> ishlatilganmi, Markdown qolmaganmi
 
@@ -1013,10 +1132,15 @@ def agent6_publish(post):
         tg_msg(TELEGRAM_ADMIN_ID, "ℹ️ <i>DRY_RUN yoqilgan — post kanalga chiqmadi.</i>")
         return
     mid = tg_send_post(TELEGRAM_CHANNEL, post)
-    extra = {"message_id": mid}
+    extra = {"message_id": mid, "tur": post.get("source", "ai")}
     if post.get("source") == "stories":
         extra["day"] = post["day"]
         stories_mark_sent(post["day"], mid)
+    elif post.get("source") == "kurs":
+        extra["dars"] = post["kurs_n"]
+        kurs_mark_sent(post["kurs_n"], mid)
+    elif post.get("source") == "yangilik":
+        yangilik_mark_sent()
     hist_add(post["topic"].get("topic", ""), post.get("title", ""), extra)
     log(f"[6-agent] Kanalga chiqdi — message_id {mid}")
 
@@ -1026,10 +1150,13 @@ def agent6_publish(post):
 # ══════════════════════════════════════════════════════════════════
 
 def build_post(avoid, label=""):
-    if POST_SOURCE == "stories":
+    src = pick_source()
+    if src == "hikoya":
         return build_story_post()
+    if src == "kurs":
+        return build_kurs_post()
     log(f"=== Post yaratilmoqda{' (' + label + ')' if label else ''} ===")
-    topic = agent1_topic(avoid)
+    topic = topic_yangilik(avoid) if src == "yangilik" else agent1_topic(avoid)
     post, feedback = None, None
     for i in range(1, 4):
         post = agent2_write(topic, feedback)
@@ -1045,6 +1172,7 @@ def build_post(avoid, label=""):
         post["image_path"] = agent3_image(post)
     post["voice_path"] = agent4_voice(post)
     post["topic"] = topic
+    post["source"] = src
     log(f"=== Tayyor: {post['title']} ===")
     return post
 
@@ -1069,16 +1197,36 @@ def send_preview(post, deadline, round_no):
 
 
 def run(force_now=False, preview_only=False):
+    src = pick_source()
+    log(f"[jadval] slot={SLOT} · tur={src}")
+
     hh, mm = (int(x) for x in PUBLISH_TIME.split(":"))
     t = now()
     publish_at = t.replace(hour=hh, minute=mm, second=0, microsecond=0)
     if publish_at < t:
         publish_at = t + timedelta(minutes=PREVIEW_LEAD)
         log(f"[jadval] {PUBLISH_TIME} o'tib ketgan — yangi vaqt {publish_at:%H:%M}")
+    if force_now:
+        publish_at = now() + timedelta(minutes=PREVIEW_LEAD)
+
+    # ── Preview kerak bo'lmagan turlar: hikoya va kurs ──────────
+    if src not in PREVIEW_TURLARI:
+        post = build_post([])
+        wait = (publish_at - now()).total_seconds()
+        if wait > 0:
+            log(f"[jadval] chiqish vaqtigacha {int(wait)} soniya kutilmoqda")
+            time.sleep(wait)
+        if preview_only:
+            log("[preview-only] kanalga chiqarilmadi — adminga yuborilmoqda")
+            tg_send_post(TELEGRAM_ADMIN_ID, post)
+            return
+        agent6_publish(post)
+        return
+
+    # ── Yangilik: preview + qayta qilish tugmasi ────────────────
     preview_at = publish_at - timedelta(minutes=PREVIEW_LEAD)
     if force_now:
         preview_at = now()
-        publish_at = now() + timedelta(minutes=PREVIEW_LEAD)
     log(f"[jadval] preview {preview_at:%H:%M} · publish {publish_at:%H:%M}")
 
     offset = tg_drain()
@@ -1104,7 +1252,7 @@ def run(force_now=False, preview_only=False):
                    f"⚠️ Qayta qilish limiti ({MAX_REDO}) tugadi. "
                    f"Oxirgi variant chiqariladi.")
             break
-        avoid.append(post["topic"].get("topic", ""))
+        avoid.append(post.get("topic", {}).get("topic", ""))
         tg_msg(TELEGRAM_ADMIN_ID, "⏳ Yangi post yaratilmoqda — 2-3 daqiqa...")
         round_no += 1
         try:
@@ -1121,6 +1269,56 @@ def run(force_now=False, preview_only=False):
         log("[6-agent] --preview-only — kanalga chiqarilmadi")
         return
     agent6_publish(post)
+
+
+def weekly_preview():
+    """Kelgusi 7 kunlik postlarni adminga oldindan yuboradi.
+
+    Yangilik bu ro'yxatga kirmaydi — u chiqishidan 10 daqiqa oldin
+    alohida preview bo'lib keladi.
+    """
+    st = stories_state()
+    kun = st.get("last_sent", 0) + 1
+    dars = st.get("kurs_oxirgi", 0) + 1
+    kechki = st.get("oxirgi_kechki")
+
+    hikoyalar, darslar, jadval = [], [], []
+    t = now()
+    for i in range(7):
+        sana = t + timedelta(days=i)
+        qator = f"<b>{sana:%d.%m}</b> · 08:45 — {kun + i}-hikoya"
+        if kun + i > STORIES_TOTAL:
+            qator = f"<b>{sana:%d.%m}</b> · 08:45 — <i>hikoyalar tugadi</i>"
+        else:
+            hikoyalar.append(kun + i)
+        kechki = "yangilik" if kechki == "kurs" else "kurs"
+        if kechki == "kurs":
+            qator += f"  ·  19:45 — {dars}-dars"
+            darslar.append(dars)
+            dars += 1
+        else:
+            qator += "  ·  19:45 — yangilik (jonli)"
+        jadval.append(qator)
+
+    bosh = ("📅 <b>Kelgusi 7 kun</b>\n\n" + "\n".join(jadval) +
+            "\n\nQuyida hikoya va dars matnlari. O'zgartirish kerak bo'lsa "
+            "ayting — chiqishidan oldin tuzatiladi.\n"
+            "Yangilik matni har safar chiqishidan 10 daqiqa oldin alohida keladi.")
+    tg_msg(TELEGRAM_ADMIN_ID, bosh)
+
+    for n in hikoyalar:
+        try:
+            tg_msg(TELEGRAM_ADMIN_ID, f"<b>[{n}-hikoya]</b>\n\n" + story_read(n))
+            time.sleep(1)
+        except Exception as e:
+            log(f"[haftalik] {n}-hikoya yuborilmadi: {e}")
+    for n in darslar:
+        try:
+            tg_msg(TELEGRAM_ADMIN_ID, f"<b>[{n}-dars]</b>\n\n" + kurs_all()[n])
+            time.sleep(1)
+        except Exception as e:
+            log(f"[haftalik] {n}-dars yuborilmadi: {e}")
+    log(f"[haftalik] {len(hikoyalar)} hikoya, {len(darslar)} dars yuborildi")
 
 
 def doctor():
@@ -1219,30 +1417,23 @@ def doctor():
         print("   >>> TELEGRAM_CHANNEL xato yoki bot u yerga qo'shilmagan.")
         print("       Yopiq guruh bo'lsa -100... ko'rinishidagi ID kerak.")
 
-    # 5. Kontent manbai
-    print(f"\n5) KONTENT MANBAI: {POST_SOURCE}")
-    if POST_SOURCE == "stories":
-        try:
-            found = len(stories_all())
-        except Exception as e:
-            found = 0
-            print(f"   XATO: {e}")
-        st = stories_state()
-        nxt = stories_next_day()
-        print(f"   Hikoya fayllari: {found} / {STORIES_TOTAL}")
-        print(f"   Oxirgi chiqqan kun: {st.get('last_sent', 0)}")
-        if nxt > STORIES_TOTAL:
-            print("   >>> Hammasi chiqib bo'lgan. stories_state.json ni tiklang.")
-        else:
-            print(f"   Keyingi chiqadigan: {nxt}-kun")
-            try:
-                t = story_read(nxt)
-                print(f"   Sarlavha: {strip_tags(t.splitlines()[0]).strip()}")
-                print(f"   Uzunligi: {len(strip_tags(t))} belgi")
-            except Exception as e:
-                print(f"   XATO: {e}")
-    else:
-        print("   Gemini har kuni yangi post yozadi (eski rejim).")
+    # 5. Kontent jadvali
+    print(f"\n5) KONTENT JADVALI (slot: {SLOT})")
+    st = stories_state()
+    try:
+        h = len(stories_all())
+        print(f"   Hikoyalar: {h} ta · oxirgi chiqqan: {st.get('last_sent', 0)}-kun"
+              f" · keyingi: {stories_next_day()}-kun")
+    except Exception as e:
+        print(f"   Hikoyalar XATO: {e}")
+    try:
+        k = len(kurs_all())
+        print(f"   Kurs darslari: {k} ta · oxirgi chiqqan: {st.get('kurs_oxirgi', 0)}"
+              f" · keyingi: {kurs_next()}-dars")
+    except Exception as e:
+        print(f"   Kurs XATO: {e}")
+    print(f"   Oxirgi kechki post turi: {st.get('oxirgi_kechki') or '(yo`q)'}")
+    print(f"   Bugungi slot uchun tanlangan tur: {pick_source()}")
 
     print("\n" + "=" * 60)
 
@@ -1254,10 +1445,24 @@ def main():
     ap.add_argument("--doctor", action="store_true", help="faqat diagnostika")
     ap.add_argument("--day", type=int, default=None,
                     help="365 hikoyadan aniq kunni chiqarish (masalan --day 42)")
+    ap.add_argument("--dars", type=int, default=None,
+                    help="kursdan aniq darsni chiqarish (masalan --dars 12)")
+    ap.add_argument("--weekly", action="store_true",
+                    help="kelgusi 7 kunlik postlarni adminga yuborish")
     args = ap.parse_args()
 
     if args.day:
         os.environ["FORCE_DAY"] = str(args.day)
+    if args.dars:
+        os.environ["FORCE_KURS"] = str(args.dars)
+
+    if args.weekly:
+        try:
+            weekly_preview()
+            return 0
+        except Exception as e:
+            log(f"[FATAL] haftalik ko'rik: {e}")
+            return 1
 
     if args.doctor:
         doctor()
