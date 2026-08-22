@@ -460,6 +460,33 @@ def build_kurs_post(n=None):
     return post
 
 
+YANGILIK_QOIDALARI = """
+## YANGILIK POSTI UCHUN QO'SHIMCHA QOIDALAR
+
+Bu post e'tiborni tortishi kerak. Quruq xabar — eng yomon variant.
+
+Sarlavha:
+- Ichida raqam, natija yoki kutilmagan fakt bo'lsin
+- Yomon: "Kompaniya yangi model chiqardi"
+- Yaxshi: "Yangi model kod yozishni ikki barobar arzonlashtirdi"
+
+Birinchi gap:
+- Eng kuchli fakt yoki savol bilan boshlansin
+- "Kecha ma'lum bo'ldiki" kabi sust boshlanish yo'q
+
+Ichida:
+- Nima bo'lgani — 1-2 gap, aniq
+- Nega muhim — 1-2 gap
+- <b>Sizga nima beradi</b> — bu qism majburiy, amaliy bo'lsin
+- Faqat tekshirilgan raqam. Bo'lmasa — raqam yozma
+
+Yakun:
+- Bugun sinab ko'rish mumkin bo'lgan aniq harakat yoki bitta savol
+
+Uzunlik 500-900 belgi. Emoji eng ko'pi 1 ta. Hashtag yo'q.
+"""
+
+
 def topic_yangilik(avoid):
     """Google qidiruvi orqali so'nggi haftaning yangiligini topadi."""
     used = "\n".join(f"- {t}" for t in (hist_topics(30) + avoid)) or "(bo'sh)"
@@ -1074,7 +1101,7 @@ Javobni FAQAT shu JSON ko'rinishida ber:
     return topics[0]
 
 
-def agent2_write(topic, feedback=None):
+def agent2_write(topic, feedback=None, extra=""):
     facts = "\n".join(f"- {f}" for f in topic.get("key_facts", []))
     fb = (f"\n\nOLDINGI URINISH RAD ETILDI. Sabab:\n{feedback}\n"
           f"Bu xatolarni takrorlama." if feedback else "")
@@ -1095,6 +1122,8 @@ Nega foydali: {topic.get('why', '')}
 Tayanch faktlar:
 {facts}
 {fb}
+
+{extra}
 
 ## VAZIFA
 Shu mavzuda bitta Telegram post yoz.
@@ -1306,7 +1335,8 @@ def build_post(avoid, label=""):
     topic = topic_yangilik(avoid) if src == "yangilik" else agent1_topic(avoid)
     post, feedback = None, None
     for i in range(1, 4):
-        post = agent2_write(topic, feedback)
+        post = agent2_write(topic, feedback,
+                            YANGILIK_QOIDALARI if src == "yangilik" else "")
         img = agent3_image(post)
         v = agent5_review(post, topic, img)
         if v["passed"]:
@@ -1506,29 +1536,77 @@ def cmd_holat():
             f"Gemini kalitlari: {len(GEMINI_KEYS)} ta")
 
 
-def niyat_aniqla(matn):
-    """Erkin matnni buyruqqa aylantiradi."""
-    prompt = f"""Foydalanuvchi Telegram boti orqali kanalni boshqaryapti.
-Uning xabarini quyidagi buyruqlardan biriga aylantir.
+BOT_KONTEKST = """
+Kanal: @aqlustaxonastartap — startap va biznes haqida o'zbek tilidagi kanal.
 
-Buyruqlar:
-- hikoya (raqam ixtiyoriy) — 365 kunlik hikoyani ko'rsatish
-- dars (raqam ixtiyoriy) — startap kursi darsini ko'rsatish
-- yangilik — yangi yangilik posti tayyorlash
-- haftalik — kelgusi 7 kunlik postlar ro'yxati
-- holat — hozirgi holat, qaysi kunda turibmiz
-- yordam — buyruqlar ro'yxati
-- nomalum — tushunarsiz
+Kunlik jadval:
+- 08:45 — 365 kunlik startap hikoyalaridan navbatdagisi
+- 19:45 — startap kursi va yangilik almashib chiqadi
+- yakshanba 20:30 — kelgusi 7 kunlik postlar adminga yuboriladi
 
-Xabar: {matn}
+Kontent:
+- 365 ta tayyor hikoya (stories.json) — matni o'zgarmaydi
+- 96 ta startap kursi darsi (kurs.json) — matni o'zgarmaydi, 12 blok:
+  g'oya, mijoz, MVP, sotuv, narx, marketing, mahsulot, raqamlar,
+  huquq va soliq, jamoa, sarmoya, operatsiya
+- yangilik — har safar Google qidiruvi orqali yangi topiladi
 
-Javobni FAQAT JSON ber: {{"buyruq": "...", "raqam": null yoki son}}"""
-    try:
-        d = gem_json(prompt, temperature=0.2, attempts=2)
-        return d.get("buyruq", "nomalum"), d.get("raqam")
-    except Exception as e:
-        log(f"[listen] niyat aniqlanmadi: {e}")
-        return "nomalum", None
+Rasmlar: Gemini (Nano Banana) chizadi. Kurs va yangilik postlarida rasm
+ustiga sarlavha va hashtag (#startap_kursi yoki #yangilik) yoziladi,
+pastida kanal nomi turadi. Hikoyalarda toza rasm.
+
+Audio: ElevenLabs har postga qisqa ovozli izoh yozadi.
+
+Bot nima qila oladi: post tayyorlash va ko'rsatish, kanalga chiqarish,
+rasmni qayta chizdirish, haftalik ro'yxat berish, holatni aytish.
+
+Bot nima qila olmaydi: post uslubini (STYLE_GUIDE), jadval vaqtlarini va
+kod sozlamalarini o'zgartirish — bular GitHub'da bot.py va workflow
+fayllarida tahrirlanadi.
+"""
+
+
+def suhbat(matn):
+    """Foydalanuvchi xabarini tushunadi: amal yoki oddiy javob."""
+    st = stories_state()
+    holat = (f"Hozir: {stories_next_day()}-hikoya va {kurs_next()}-dars "
+             f"navbatda. Oxirgi kechki post: {st.get('oxirgi_kechki') or 'yo`q'}.")
+    prompt = f"""Sen "{BOT_KONTEKST.strip()}"
+
+{holat}
+
+Sen shu kanalning boshqaruv yordamchisisan. Admin senga yozdi:
+---
+{matn}
+---
+
+Vazifang: uning gapini tushun va quyidagilardan birini tanla.
+
+AMALLAR:
+- "hikoya" — hikoya postini tayyorlab ko'rsatish (raqam bo'lsa o'shani)
+- "dars" — kurs darsini tayyorlab ko'rsatish (raqam bo'lsa o'shani)
+- "yangilik" — yangi yangilik posti tayyorlash
+- "haftalik" — kelgusi 7 kunlik postlar ro'yxati
+- "holat" — hozirgi holat
+- "yordam" — buyruqlar ro'yxati
+- "javob" — amal kerak emas, shunchaki javob berish kerak
+
+QOIDALAR:
+- Admin biror narsani o'zgartirishni so'rasa yoki savol bersa — "javob"
+  tanla va "javob" maydonida aniq, qisqa javob yoz
+- Agar so'ralgan narsa allaqachon qilingan bo'lsa — shuni ayt
+- Agar bot qila olmaydigan narsa so'ralsa — buni ochiq ayt va qayerda
+  o'zgartirilishini tushuntir
+- Hech qachon "tushunmadim" deb javob berma
+- O'zbek tilida, lotin yozuvida, do'stona va qisqa yoz
+- HTML: faqat <b> va <i>. Markdown ishlatma
+
+Javobni FAQAT shu JSON ko'rinishida ber:
+{{"amal": "hikoya|dars|yangilik|haftalik|holat|yordam|javob",
+ "raqam": null yoki son,
+ "javob": "javob matni (amal 'javob' bo'lsa to'ldiriladi, aks holda qisqa tasdiq)"}}"""
+    d = gem_json(prompt, temperature=0.5, attempts=2)
+    return (d.get("amal") or "javob"), d.get("raqam"), (d.get("javob") or "")
 
 
 def buyruqni_bajar(buyruq, raqam):
@@ -1552,23 +1630,38 @@ def buyruqni_bajar(buyruq, raqam):
             post = build_post([], "")
         _yubor_preview(post, f"Yuqorida — {_tur_nomi(post)}. Nima qilay?")
         return
-    tg_msg(TELEGRAM_ADMIN_ID,
-           "Tushunmadim. /yordam yozing yoki oddiyroq ayting.")
+    tg_msg(TELEGRAM_ADMIN_ID, YORDAM)
 
 
 def matnni_ishla(matn):
     m = (matn or "").strip()
     if not m:
         return
+    javob = ""
     if m.startswith("/"):
         qism = m[1:].split()
-        buyruq = qism[0].lower().split("@")[0]
+        amal = qism[0].lower().split("@")[0]
         raqam = qism[1] if len(qism) > 1 and qism[1].isdigit() else None
-        buyruq = {"start": "yordam", "help": "yordam"}.get(buyruq, buyruq)
+        amal = {"start": "yordam", "help": "yordam"}.get(amal, amal)
+        if amal not in ("hikoya", "dars", "yangilik", "haftalik",
+                        "holat", "yordam"):
+            amal = "yordam"
     else:
-        buyruq, raqam = niyat_aniqla(m)
+        try:
+            amal, raqam, javob = suhbat(m)
+        except Exception as e:
+            log(f"[listen] suhbat xatosi: {e}")
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   f"⚠️ Gemini javob bermadi: <code>{str(e)[:250]}</code>\n\n"
+                   f"Buyruq bilan urinib ko'ring: /yordam")
+            return
+    if javob and amal == "javob":
+        tg_msg(TELEGRAM_ADMIN_ID, javob)
+        return
+    if javob:
+        tg_msg(TELEGRAM_ADMIN_ID, javob)
     try:
-        buyruqni_bajar(buyruq, raqam)
+        buyruqni_bajar(amal, raqam)
     except Exception as e:
         log(f"[listen] xato: {e}")
         tg_msg(TELEGRAM_ADMIN_ID, f"❌ Xato: <code>{str(e)[:400]}</code>")
