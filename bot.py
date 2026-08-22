@@ -451,7 +451,7 @@ def build_kurs_post(n=None):
     toza = re.sub(r"^[^A-Za-zА-Яа-яЎўҚқҒғҲҳ0-9]+", "", title).strip()
     post = {
         "source": "kurs", "kurs_n": n, "title": title, "text": text,
-        "card_title": toza, "badge": f"STARTAP KURSI · {n}/{len(all_)}",
+        "card_title": toza, "badge": "#startap_kursi",
         "image_idea": story_image_idea(title, text),
         "audio_script": story_audio_script(text, title),
         "topic": {"topic": f"Startap kursi · {n}-dars · {title}"},
@@ -572,13 +572,11 @@ def make_card(title, badge, bg_path=None, out=None):
     d = ImageDraw.Draw(img)
     M = 78
 
-    # yuqori chap burchakdagi yorliq
+    # yuqori chap burchakdagi hashtag
     if badge:
-        bf = _font(30)
-        bw = d.textlength(badge, font=bf)
-        d.rounded_rectangle([M, 56, M + bw + 44, 56 + 56], radius=28,
-                            fill=(217, 119, 87))
-        d.text((M + 22, 56 + 12), badge, font=bf, fill=(255, 252, 250))
+        bf = _font(36)
+        d.text((M + 2, 60 + 2), badge, font=bf, fill=(0, 0, 0))
+        d.text((M, 60), badge, font=bf, fill=(232, 145, 112))
 
     # sarlavha — sig'maguncha kichraytiramiz
     size = 74
@@ -1324,7 +1322,7 @@ def build_post(avoid, label=""):
     post["source"] = src
     if src == "yangilik":
         post["card_title"] = strip_tags(post["title"]).strip()
-        post["badge"] = f"YANGILIK · {now():%d.%m}"
+        post["badge"] = "#yangilik"
     log(f"=== Tayyor: {post['title']} ===")
     return post
 
