@@ -66,6 +66,9 @@ jobs:
           TELEGRAM_CHANNEL:    ${{ secrets.TELEGRAM_CHANNEL }}
           TELEGRAM_ADMIN_ID:   ${{ secrets.TELEGRAM_ADMIN_ID }}
           GEMINI_API_KEY:      ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_2:    ${{ secrets.GEMINI_API_KEY_2 }}
+          GEMINI_API_KEY_3:    ${{ secrets.GEMINI_API_KEY_3 }}
+          GEMINI_API_KEY_4:    ${{ secrets.GEMINI_API_KEY_4 }}
           ELEVENLABS_API_KEY:  ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
           POST_SOURCE:         ${{ vars.POST_SOURCE }}
