@@ -79,6 +79,15 @@ PUBLISH_TIME = os.getenv("PUBLISH_TIME", "").strip() or "19:45"
 PREVIEW_LEAD = _int("PREVIEW_LEAD_MINUTES", 10)
 TZ = ZoneInfo(os.getenv("TIMEZONE", "").strip() or "Asia/Tashkent")
 RUBRIC = os.getenv("RUBRIC", "").strip() or "Claude maslahatlar"
+
+# Kontent manbai:
+#   "stories" — stories/ papkasidagi 365 ta tayyor hikoya (kuniga bittadan)
+#   "ai"      — Gemini har kuni yangi post yozadi (eski rejim)
+POST_SOURCE = (os.getenv("POST_SOURCE", "").strip().lower() or "stories")
+STORIES_DIR = ROOT / "stories"
+STORIES_JSON = ROOT / "stories.json"
+STORIES_STATE = ROOT / "stories_state.json"
+STORIES_TOTAL = 365
 MAX_REDO = _int("MAX_REDO", 5)
 DRY_RUN = os.getenv("DRY_RUN", "0").strip() == "1"
 
@@ -297,6 +306,136 @@ def hist_add(topic, title, extra=None):
     d.append(e)
     HISTORY_FILE.write_text(json.dumps(d[-400:], ensure_ascii=False, indent=2),
                             encoding="utf-8")
+
+
+# ── 365 kunlik hikoyalar ─────────────────────────────────────────
+def stories_state():
+    if not STORIES_STATE.exists():
+        return {"last_sent": 0, "sent": []}
+    try:
+        d = json.loads(STORIES_STATE.read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else {"last_sent": 0, "sent": []}
+    except (json.JSONDecodeError, OSError):
+        return {"last_sent": 0, "sent": []}
+
+
+def stories_next_day():
+    """Navbatdagi kun raqami. FORCE_DAY berilsa — o'sha kun."""
+    forced = os.getenv("FORCE_DAY", "").strip()
+    if forced:
+        return int(forced)
+    return stories_state().get("last_sent", 0) + 1
+
+
+def stories_mark_sent(day, message_id=None):
+    st = stories_state()
+    st["last_sent"] = max(st.get("last_sent", 0), day)
+    st.setdefault("sent", []).append(
+        {"day": day, "date": now().strftime("%Y-%m-%d %H:%M"),
+         "message_id": message_id})
+    st["sent"] = st["sent"][-400:]
+    STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
+                             encoding="utf-8")
+
+
+_STORIES_CACHE = {}
+
+
+def stories_all():
+    """Barcha hikoyalar: {kun_raqami: matn}. stories.json birinchi navbatda."""
+    if _STORIES_CACHE:
+        return _STORIES_CACHE
+    if STORIES_JSON.exists():
+        d = json.loads(STORIES_JSON.read_text(encoding="utf-8"))
+        for k, v in (d.get("posts") or {}).items():
+            _STORIES_CACHE[int(k)] = v.strip()
+    elif STORIES_DIR.exists():
+        for p in sorted(STORIES_DIR.glob("[0-9][0-9][0-9].html")):
+            _STORIES_CACHE[int(p.stem)] = p.read_text(encoding="utf-8").strip()
+    if not _STORIES_CACHE:
+        raise RuntimeError("Hikoyalar topilmadi: stories.json ham, stories/ ham yo'q")
+    return _STORIES_CACHE
+
+
+def story_read(day):
+    all_ = stories_all()
+    if day not in all_:
+        raise RuntimeError(f"{day}-kun hikoyasi topilmadi")
+    return all_[day]
+
+
+def story_audio_script(text, title):
+    """Hikoyadan qisqa audio matn tayyorlaydi (ElevenLabs uchun)."""
+    plain = strip_tags(text)
+    prompt = f"""Quyidagi hikoyani audio uchun qisqacha so'zlab ber.
+
+QOIDALAR:
+- O'zbek tili, lotin yozuvi, jonli og'zaki ohang
+- 70-100 so'z
+- HTML teg, emoji, havola, hashtag YO'Q
+- Hikoyaning asosiy g'oyasi va yakuniy darsi qolsin
+- Faqat matnning o'zini qaytar, boshqa hech narsa yozma
+
+HIKOYA:
+{plain[:3000]}"""
+    try:
+        return strip_tags(gem_text(prompt, temperature=0.6)).strip()
+    except Exception as e:
+        log(f"[audio] matn tayyorlanmadi: {e}")
+        return " ".join(plain.split()[:90])
+
+
+def story_image_idea(title, text):
+    """Rasm uchun ingliz tilida qisqa vizual g'oya."""
+    prompt = f"""Read this Uzbek startup story and give ONE short visual idea
+for an illustrating image. English, one sentence, no text/letters in the scene.
+Return only the sentence.
+
+TITLE: {title}
+STORY: {strip_tags(text)[:1500]}"""
+    try:
+        out = clean(gem_text(prompt, temperature=0.8)).strip()
+        return out.split("\n")[0][:300] or title
+    except Exception as e:
+        log(f"[rasm] g'oya olinmadi: {e}")
+        return title
+
+
+def build_story_post(day=None):
+    """stories/ papkasidan navbatdagi tayyor hikoyani post qilib beradi.
+
+    Hikoya matni O'ZGARTIRILMAYDI — QA/qayta yozish bosqichi yo'q.
+    Faqat rasm va audio qaytadan yaratiladi.
+    """
+    day = day or stories_next_day()
+    if day > STORIES_TOTAL:
+        raise RuntimeError(f"Barcha {STORIES_TOTAL} ta hikoya chiqib bo'lgan. "
+                           f"stories_state.json dagi last_sent ni 0 qiling.")
+    text = story_read(day)
+    first = text.split("\n", 1)[0]
+    title = strip_tags(first).strip()
+    log(f"=== Hikoya {day}/{STORIES_TOTAL} — {title} ({len(text)} belgi) ===")
+
+    post = {
+        "source": "stories",
+        "day": day,
+        "title": title,
+        "text": text,
+        "image_idea": story_image_idea(title, text),
+        "audio_script": story_audio_script(text, title),
+        "topic": {"topic": f"365-hikoya · {day}-kun · {title}"},
+    }
+    try:
+        post["image_path"] = agent3_image(post)
+    except Exception as e:
+        log(f"[rasm] chizilmadi: {e}")
+        post["image_path"] = None
+    try:
+        post["voice_path"] = agent4_voice(post)
+    except Exception as e:
+        log(f"[audio] yozilmadi: {e}")
+        post["voice_path"] = None
+    return post
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -874,8 +1013,11 @@ def agent6_publish(post):
         tg_msg(TELEGRAM_ADMIN_ID, "ℹ️ <i>DRY_RUN yoqilgan — post kanalga chiqmadi.</i>")
         return
     mid = tg_send_post(TELEGRAM_CHANNEL, post)
-    hist_add(post["topic"].get("topic", ""), post.get("title", ""),
-             {"message_id": mid})
+    extra = {"message_id": mid}
+    if post.get("source") == "stories":
+        extra["day"] = post["day"]
+        stories_mark_sent(post["day"], mid)
+    hist_add(post["topic"].get("topic", ""), post.get("title", ""), extra)
     log(f"[6-agent] Kanalga chiqdi — message_id {mid}")
 
 
@@ -884,6 +1026,8 @@ def agent6_publish(post):
 # ══════════════════════════════════════════════════════════════════
 
 def build_post(avoid, label=""):
+    if POST_SOURCE == "stories":
+        return build_story_post()
     log(f"=== Post yaratilmoqda{' (' + label + ')' if label else ''} ===")
     topic = agent1_topic(avoid)
     post, feedback = None, None
@@ -906,12 +1050,19 @@ def build_post(avoid, label=""):
 
 
 def send_preview(post, deadline, round_no):
-    kb = {"inline_keyboard": [[{"text": "🔄 Qayta qilish", "callback_data": REDO_DATA}]]}
+    btn = ("🔄 Rasm/audioni qayta qilish" if post.get("source") == "stories"
+           else "🔄 Qayta qilish")
+    kb = {"inline_keyboard": [[{"text": btn, "callback_data": REDO_DATA}]]}
     tg_send_post(TELEGRAM_ADMIN_ID, post)
-    header = (f"<b>PREVIEW</b> · {RUBRIC}\n"
+    label = (f"365 hikoya · {post['day']}-kun" if post.get("source") == "stories"
+             else RUBRIC)
+    hint = ("\nTugma bosilsa — matn o'zgarmaydi, faqat rasm va audio qayta yaratiladi."
+            if post.get("source") == "stories" else "")
+    header = (f"<b>PREVIEW</b> · {label}\n"
               f"Chiqish vaqti: <b>{deadline:%H:%M}</b>"
               + (f" · {round_no}-variant" if round_no > 1 else "")
-              + "\nHech narsa bosmasangiz — o'sha vaqtda kanalga chiqadi.")
+              + "\nHech narsa bosmasangiz — o'sha vaqtda kanalga chiqadi."
+              + hint)
     ctrl = tg_msg(TELEGRAM_ADMIN_ID, header, markup=kb)
     log(f"[preview] yuborildi (deadline {deadline:%H:%M})")
     return ctrl["message_id"]
@@ -1068,6 +1219,31 @@ def doctor():
         print("   >>> TELEGRAM_CHANNEL xato yoki bot u yerga qo'shilmagan.")
         print("       Yopiq guruh bo'lsa -100... ko'rinishidagi ID kerak.")
 
+    # 5. Kontent manbai
+    print(f"\n5) KONTENT MANBAI: {POST_SOURCE}")
+    if POST_SOURCE == "stories":
+        try:
+            found = len(stories_all())
+        except Exception as e:
+            found = 0
+            print(f"   XATO: {e}")
+        st = stories_state()
+        nxt = stories_next_day()
+        print(f"   Hikoya fayllari: {found} / {STORIES_TOTAL}")
+        print(f"   Oxirgi chiqqan kun: {st.get('last_sent', 0)}")
+        if nxt > STORIES_TOTAL:
+            print("   >>> Hammasi chiqib bo'lgan. stories_state.json ni tiklang.")
+        else:
+            print(f"   Keyingi chiqadigan: {nxt}-kun")
+            try:
+                t = story_read(nxt)
+                print(f"   Sarlavha: {strip_tags(t.splitlines()[0]).strip()}")
+                print(f"   Uzunligi: {len(strip_tags(t))} belgi")
+            except Exception as e:
+                print(f"   XATO: {e}")
+    else:
+        print("   Gemini har kuni yangi post yozadi (eski rejim).")
+
     print("\n" + "=" * 60)
 
 
@@ -1076,7 +1252,12 @@ def main():
     ap.add_argument("--now", action="store_true", help="jadvalni kutmasdan boshlash")
     ap.add_argument("--preview-only", action="store_true", help="kanalga chiqarmaslik")
     ap.add_argument("--doctor", action="store_true", help="faqat diagnostika")
+    ap.add_argument("--day", type=int, default=None,
+                    help="365 hikoyadan aniq kunni chiqarish (masalan --day 42)")
     args = ap.parse_args()
+
+    if args.day:
+        os.environ["FORCE_DAY"] = str(args.day)
 
     if args.doctor:
         doctor()
