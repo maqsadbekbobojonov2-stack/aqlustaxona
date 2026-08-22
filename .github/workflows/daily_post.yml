@@ -69,6 +69,10 @@ jobs:
           GEMINI_API_KEY_2:    ${{ secrets.GEMINI_API_KEY_2 }}
           GEMINI_API_KEY_3:    ${{ secrets.GEMINI_API_KEY_3 }}
           GEMINI_API_KEY_4:    ${{ secrets.GEMINI_API_KEY_4 }}
+          GROK_API_KEY:        ${{ secrets.GROK_API_KEY }}
+          GROK_API_KEY_2:      ${{ secrets.GROK_API_KEY_2 }}
+          GITHUB_TOKEN:        ${{ github.token }}
+          GITHUB_REPOSITORY:   ${{ github.repository }}
           ELEVENLABS_API_KEY:  ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
           POST_SOURCE:         ${{ vars.POST_SOURCE }}
