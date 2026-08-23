@@ -1356,6 +1356,61 @@ IMAGE_MODEL_FALLBACKS = [
 ]
 
 
+# ── BEPUL RASM ZAXIRASI ───────────────────────────────────────────
+# Google nano banana'ni API orqali BEPUL bermaydi (free tier limit: 0).
+# Shuning uchun Gemini rasm chizolmasa — bepul xizmatlarga o'tamiz.
+CF_ACCOUNT = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
+CF_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN", "").strip()
+
+
+def _pollinations(prompt, out_path):
+    """Pollinations — mutlaqo bepul, kalit ham, ro'yxatdan o'tish ham
+    kerak emas. Ichida Flux modeli ishlaydi."""
+    from urllib.parse import quote
+    url = ("https://image.pollinations.ai/prompt/"
+           + quote(prompt[:1500], safe="")
+           + "?width=1280&height=720&nologo=true&model=flux&enhance=true")
+    r = requests.get(url, timeout=180)
+    if r.status_code != 200 or len(r.content) < 5000:
+        raise RuntimeError(f"Pollinations HTTP {r.status_code}, "
+                           f"{len(r.content)} bayt")
+    Path(out_path).write_bytes(r.content)
+    return Path(out_path)
+
+
+def _cloudflare(prompt, out_path):
+    """Cloudflare Workers AI — bepul tarifda kuniga ancha rasm beradi.
+    CLOUDFLARE_ACCOUNT_ID va CLOUDFLARE_API_TOKEN kerak."""
+    if not (CF_ACCOUNT and CF_TOKEN):
+        raise RuntimeError("Cloudflare kaliti yo'q")
+    r = requests.post(
+        f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT}"
+        f"/ai/run/@cf/black-forest-labs/flux-1-schnell",
+        headers={"Authorization": f"Bearer {CF_TOKEN}"},
+        json={"prompt": prompt[:2000], "steps": 6}, timeout=180)
+    if r.status_code != 200:
+        raise RuntimeError(f"Cloudflare HTTP {r.status_code}: {r.text[:200]}")
+    b64 = (r.json().get("result") or {}).get("image", "")
+    if not b64:
+        raise RuntimeError("Cloudflare rasm qaytarmadi")
+    Path(out_path).write_bytes(base64.b64decode(b64))
+    return Path(out_path)
+
+
+def bepul_rasm(prompt, out_path):
+    """Gemini ishlamaganda ishlatiladigan BEPUL rasm chizuvchilar."""
+    sabablar = []
+    for nom, f in (("cloudflare", _cloudflare), ("pollinations", _pollinations)):
+        try:
+            p = f(prompt, out_path)
+            print(f"[rasm] bepul zaxira ishladi — {nom}")
+            return p
+        except Exception as e:
+            sabablar.append(f"{nom}: {str(e)[:150]}")
+    raise RuntimeError("Bepul zaxira ham ishlamadi:\n- "
+                       + "\n- ".join(sabablar))
+
+
 def gem_image(prompt, out_path):
     """Rasm generatsiya qiladi. Bir necha model va sozlamani sinab ko'radi."""
     out_path = Path(out_path)
@@ -1754,7 +1809,16 @@ it, without reading anything, should understand what the post is about.
 Follow the style rules above exactly. No written words or letters."""
     try:
         p = gem_image(prompt, BUILD / "post.png")
-        print(f"[3-agent] Rasm tayyor — {p.stat().st_size // 1024} KB")
+        print(f"[3-agent] Rasm tayyor (nano banana) — "
+              f"{p.stat().st_size // 1024} KB")
+        return p
+    except Exception as e:
+        print(f"[3-agent] Gemini rasm chizmadi: {str(e)[:300]}")
+    # Nano banana pullik bo'lgani uchun ishlamasa — bepul zaxira
+    try:
+        p = bepul_rasm(prompt, BUILD / "post.png")
+        print(f"[3-agent] Rasm tayyor (bepul zaxira) — "
+              f"{p.stat().st_size // 1024} KB")
         return p
     except Exception as e:
         print(f"[3-agent] XATO: {e}")
@@ -3082,6 +3146,16 @@ def doctor():
                           f"HTTP {r.status_code} — {izoh}")
             except Exception as e:
                 print(f"   [{i}] ...{oxiri} · {nom}: {str(e)[:150]}")
+
+    # Bepul rasm zaxirasi ishlaydimi
+    print("\n   --- Bepul rasm zaxirasi ---")
+    for nom, f in (("cloudflare", _cloudflare), ("pollinations", _pollinations)):
+        try:
+            p = f("A red apple on a white table, 3D render, soft light",
+                  BUILD / f"test_{nom}.png")
+            print(f"   {nom}: ISHLAYAPTI — {p.stat().st_size // 1024} KB")
+        except Exception as e:
+            print(f"   {nom}: {str(e)[:200]}")
 
     # 5. Kontent jadvali
     print(f"\n5) KONTENT JADVALI (slot: {SLOT})")
