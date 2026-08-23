@@ -3694,7 +3694,14 @@ def main():
                     help="kelgusi 7 kunlik postlarni adminga yuborish")
     ap.add_argument("--pin", action="store_true",
                     help="pinned.txt ni kanalga chiqarib, qadab qo'yish")
+    ap.add_argument("--tur", default="", choices=["", "yangilik", "kurs",
+                                                  "hikoya", "ai"],
+                    help="post turini majburan tanlash")
     args = ap.parse_args()
+
+    if args.tur:
+        globals()["POST_SOURCE"] = args.tur
+        log(f"[jadval] tur majburan tanlandi: {args.tur}")
 
     if args.day:
         os.environ["FORCE_DAY"] = str(args.day)
