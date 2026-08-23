@@ -731,8 +731,12 @@ Post telefonda o'qiladi. Devor bo'lib turgan matnni hech kim o'qimaydi.
 """
 
 
-def topic_yangilik(avoid):
-    """Google qidiruvi orqali so'nggi haftaning yangiligini topadi."""
+def topic_yangilik(avoid, hammasi=False):
+    """Google qidiruvi orqali so'nggi haftaning yangiligini topadi.
+
+    hammasi=True bo'lsa — bitta emas, butun ro'yxatni qaytaradi
+    (haftalik taklif uchun kerak).
+    """
     used = "\n".join(f"- {t}" for t in (hist_topics(30) + avoid)) or "(bo'sh)"
     bugun = now().strftime("%Y-%m-%d")
     prompt = f"""Sen startap va texnologiya yangiliklari muharririsan.
@@ -762,6 +766,8 @@ Javobni FAQAT shu JSON ko'rinishida ber:
     topics = data.get("topics") if isinstance(data, dict) else data
     if not topics:
         raise RuntimeError("Yangilik topilmadi")
+    if hammasi:
+        return topics
     seen = {t.lower().strip() for t in hist_topics(30) + avoid}
     for t in topics:
         if t.get("topic", "").lower().strip() not in seen:
@@ -2809,15 +2815,16 @@ def listen(minutes=340):
 def weekly_preview():
     """Kelgusi 7 kunlik postlarni adminga oldindan yuboradi.
 
-    Yangilik bu ro'yxatga kirmaydi — u chiqishidan 10 daqiqa oldin
-    alohida preview bo'lib keladi.
+    Hikoya va dars — to'liq matni bilan.
+    Yangilik — mavzu takliflari bilan (matni chiqish kuni jonli
+    yoziladi, chunki yangilik eskirib qoladi).
     """
     st = stories_state()
     kun = st.get("last_sent", 0) + 1
     dars = st.get("kurs_oxirgi", 0) + 1
     kechki = st.get("oxirgi_kechki")
 
-    hikoyalar, darslar, jadval = [], [], []
+    hikoyalar, darslar, jadval, yangilik_kunlari = [], [], [], []
     t = now()
     for i in range(7):
         sana = t + timedelta(days=i)
@@ -2832,7 +2839,8 @@ def weekly_preview():
             darslar.append(dars)
             dars += 1
         else:
-            qator += "  ·  19:45 — yangilik (jonli)"
+            qator += "  ·  19:45 — yangilik"
+            yangilik_kunlari.append(f"{sana:%d.%m}")
         jadval.append(qator)
 
     bosh = ("📅 <b>Kelgusi 7 kun</b>\n\n" + "\n".join(jadval) +
@@ -2856,6 +2864,29 @@ def weekly_preview():
             time.sleep(1)
         except Exception as e:
             log(f"[haftalik] {n}-dars yuborilmadi: {e}")
+
+    # ── Yangilik mavzulari (matni chiqish kuni yoziladi) ────────
+    if yangilik_kunlari:
+        try:
+            mavzular = topic_yangilik([], hammasi=True)[:len(yangilik_kunlari)]
+        except Exception as e:
+            log(f"[haftalik] yangilik mavzulari olinmadi: {e}")
+            mavzular = []
+        if mavzular:
+            qatorlar = []
+            for sana, m in zip(yangilik_kunlari, mavzular):
+                qatorlar.append(
+                    f"<b>{sana}</b> · {html.escape(m.get('topic', ''))}\n"
+                    f"<i>{html.escape(m.get('why', ''))}</i>")
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   "📰 <b>Kelgusi yangilik mavzulari</b>\n\n"
+                   + "\n\n".join(qatorlar) +
+                   "\n\nMatni chiqish kuni yoziladi — yangilik eskirmasligi "
+                   "uchun. Mavzu yoqmasa ayting, boshqasini topaman.")
+        else:
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   "📰 Yangilik mavzularini hozir topa olmadim — "
+                   "chiqish kuni jonli tayyorlanadi.")
 
     # ── 7 kunlikni tasdiqlash ───────────────────────────────────
     if hikoyalar or darslar:
