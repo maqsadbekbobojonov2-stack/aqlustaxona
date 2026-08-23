@@ -191,6 +191,7 @@ SOZLAMA_KALITLAR = {
     "audio":            "Postlarga ovozli izoh yozilsinmi (ha / yo'q)",
     "hikoya_tasdiq":    "Hikoya chiqishidan oldin tasdiq so'ralsinmi (ha / yo'q)",
     "ajratuvchi":       "Post ichidagi ajratuvchi chiziq ko'rinishi",
+    "rasm_sarlavha":    "Rasm ustiga sarlavha yozilsinmi (ha / yo'q)",
 }
 
 
@@ -679,7 +680,7 @@ def build_kurs_post(n=None):
     toza = re.sub(r"^[^A-Za-zА-Яа-яЎўҚқҒғҲҳ0-9]+", "", title).strip()
     post = {
         "source": "kurs", "kurs_n": n, "title": title, "text": text,
-        "card_title": toza,
+        "card_title": toza if _ha("rasm_sarlavha", "yo'q") else "",
         "rasm_kerak": True,   # kurs va yangilikda rasm DOIM bo'ladi
         "badge": sozlama("kurs_hashtag", "#startap_kursi"),
         "image_idea": story_image_idea(title, text),
@@ -840,11 +841,12 @@ def make_card(title, badge, bg_path=None, out=None):
 
     # Sarlavha TEPADA turadi — shuning uchun yuqoridan pastga qorayish.
     # Pastda ham yengil soya: kanal nomi o'qilishi uchun.
+    # Asosiysi — RASM ko'rinsin. Shuning uchun soya yengil va tor.
     veil = Image.new("L", (1, H))
     for i in range(H):
         k = i / H
-        tepa = max(0.0, (0.62 - k) / 0.62) ** 1.25 * 0.90
-        past = max(0.0, (k - 0.86) / 0.14) ** 1.4 * 0.55
+        tepa = max(0.0, (0.30 - k) / 0.30) ** 1.2 * (0.72 if title else 0.42)
+        past = max(0.0, (k - 0.88) / 0.12) ** 1.4 * 0.50
         veil.putpixel((0, i), int(255 * min(1.0, max(tepa, past))))
     veil = veil.resize((W, H))
     img = Image.composite(Image.new("RGB", (W, H), (18, 15, 14)), img, veil)
@@ -900,9 +902,9 @@ def _attach_media(post):
     if post.get("source") in ("kurs", "yangilik"):
         try:
             post["image_path"] = make_card(
-                post.get("card_title") or strip_tags(post["title"]),
+                post.get("card_title", ""),
                 post.get("badge"), post.get("image_path"))
-            log("[rasm] sarlavha rasm ustiga yozildi")
+            log("[rasm] kartochka tayyor")
         except Exception as e:
             log(f"[rasm] kartochka yasalmadi: {e}")
 
@@ -1171,14 +1173,17 @@ def gem_post(model, body):
             # Kvota yoki kalit muammosi — zaxira kalitga o'tamiz.
             # Barcha kalitlar bir marta sinalgach — biroz kutamiz,
             # chunki kalitlarni tez-tez almashtirish kvotani tiklamaydi.
-            if r.status_code in (429, 403) and gem_rotate_key():
-                last = f"HTTP {r.status_code} (kalit almashtirildi)"
+            if r.status_code in (429, 403):
                 aylanish[0] += 1
-                if aylanish[0] % max(1, len(GEMINI_KEYS)) == 0:
-                    kut = 8 * (aylanish[0] // max(1, len(GEMINI_KEYS)))
-                    print(f"[gemini] barcha kalitlarda kvota tugagan — "
-                          f"{kut} soniya kutilmoqda")
-                    time.sleep(min(kut, 30))
+                # Barcha kalitlar bir marta sinalgan bo'lsa — kvota
+                # butun loyihada tugagan. Yana aylantirish foydasiz,
+                # faqat vaqt yeydi. Darhol to'xtaymiz.
+                if aylanish[0] >= len(GEMINI_KEYS) or not gem_rotate_key():
+                    raise RuntimeError(
+                        f"Gemini kvotasi tugagan (HTTP {r.status_code}, "
+                        f"{len(GEMINI_KEYS)} ta kalitda ham). "
+                        f"Javob: {r.text[:200]}")
+                last = f"HTTP {r.status_code} (kalit almashtirildi)"
                 continue
             if r.status_code in (429, 500, 502, 503, 504):
                 last = f"HTTP {r.status_code}"
@@ -1903,7 +1908,8 @@ def build_post(avoid, label="", src=None):
     post["source"] = src
     post["rasm_kerak"] = True
     if src == "yangilik":
-        post["card_title"] = strip_tags(post["title"]).strip()
+        post["card_title"] = (strip_tags(post["title"]).strip()
+                              if _ha("rasm_sarlavha", "yo'q") else "")
         post["badge"] = sozlama("yangilik_hashtag", "#yangilik")
         # Sarlavha + hashtag + kanal nomi rasm ustiga yoziladi.
         # (Avval bu bosqich tushib qolgan edi — yangilik rasmi bo'sh chiqardi.)
