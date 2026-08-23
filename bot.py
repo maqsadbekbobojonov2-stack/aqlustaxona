@@ -3061,20 +3061,23 @@ def doctor():
     print("\n   --- Har bir kalit alohida sinovdan o'tkazilmoqda ---")
     for i, k in enumerate(GEMINI_KEYS, 1):
         oxiri = k[-6:] if len(k) > 6 else "?"
-        for nom, model, tana in (
-            ("matn", GEMINI_TEXT_MODEL,
-             {"contents": [{"role": "user", "parts": [{"text": "Salom deb javob ber"}]}]}),
-            ("rasm", GEMINI_IMAGE_MODEL,
-             {"contents": [{"role": "user", "parts": [{"text": "A red apple on a white table, 3D render"}]}],
-              "generationConfig": {"responseModalities": ["IMAGE"]}}),
-        ):
+        sinovlar = [("matn", GEMINI_TEXT_MODEL,
+                     {"contents": [{"role": "user",
+                                    "parts": [{"text": "Salom deb javob ber"}]}]})]
+        for m in IMAGE_MODEL_FALLBACKS:
+            sinovlar.append((
+                "rasm", m,
+                {"contents": [{"role": "user", "parts": [
+                    {"text": "A red apple on a white table, 3D render"}]}],
+                 "generationConfig": {"responseModalities": ["IMAGE"]}}))
+        for nom, model, tana in sinovlar:
             try:
                 r = requests.post(f"{GEM_BASE}/{model}:generateContent",
                                   params={"key": k}, json=tana, timeout=120)
                 if r.status_code == 200:
                     print(f"   [{i}] ...{oxiri} · {nom} ({model}): ISHLAYAPTI")
                 else:
-                    izoh = " ".join(r.text.split())[:300]
+                    izoh = " ".join(r.text.split())[:700]
                     print(f"   [{i}] ...{oxiri} · {nom} ({model}): "
                           f"HTTP {r.status_code} — {izoh}")
             except Exception as e:
