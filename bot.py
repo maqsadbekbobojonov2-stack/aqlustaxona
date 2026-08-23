@@ -1378,10 +1378,21 @@ def gem_text(prompt, search=False, temperature=0.9, json_mode=False,
             print(f"[gemini] matn modeli: {model}")
         break
     if resp is None:
-        if GROK_KEYS:
-            print("[gemini] hammasi ishlamadi — Grok'ga o'tilmoqda (oxirgi zaxira)")
-            return grok_text(prompt, json_mode=json_mode or not search,
-                             max_tokens=min(max_tokens, 8192))
+        # 1-zaxira: Grok (agar hisobda kredit bo'lsa)
+        if GROK_KEYS and not _GROK_OLDI[0]:
+            try:
+                print("[gemini] hammasi ishlamadi — Grok'ga o'tilmoqda")
+                return grok_text(prompt, json_mode=json_mode or not search,
+                                 max_tokens=min(max_tokens, 8192))
+            except Exception as e:
+                print(f"[grok] ishlamadi: {str(e)[:150]}")
+                last_err = e
+        # 2-zaxila: Cloudflare Workers AI — bepul, kunlik limiti alohida
+        if CF_ACCOUNT and CF_TOKEN:
+            print("[gemini] Cloudflare matn modeliga o'tilmoqda (bepul zaxira)")
+            return cf_text(prompt, json_mode=json_mode or not search,
+                           temperature=temperature,
+                           max_tokens=min(max_tokens, 8192))
         raise RuntimeError(f"Gemini so'rovi muvaffaqiyatsiz (barcha modellar): {last_err}")
 
     cand = (resp.get("candidates") or [{}])[0]
@@ -1397,6 +1408,55 @@ def gem_text(prompt, search=False, temperature=0.9, json_mode=False,
     if finish == "MAX_TOKENS":
         raise RuntimeError("Gemini javobi token limitiga yetib uzilib qoldi")
     return out
+
+
+# Cloudflare Workers AI — matn uchun bepul zaxira. Kunlik limiti
+# Gemini'nikidan alohida, shuning uchun Gemini kvotasi tugaganda ham
+# post chiqadi.
+CF_MATN_MODELLAR = [
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "@cf/meta/llama-3.1-8b-instruct",
+    "@cf/qwen/qwen1.5-14b-chat-awq",
+]
+
+
+def cf_text(prompt, json_mode=False, temperature=0.7, max_tokens=4096):
+    """Cloudflare Workers AI orqali matn yozadi."""
+    if not (CF_ACCOUNT and CF_TOKEN):
+        raise RuntimeError("Cloudflare kaliti yo'q")
+    qoshimcha = ("\n\nJavobni FAQAT to'g'ri JSON ko'rinishida ber. "
+                 "Hech qanday izoh, sarlavha yoki ``` belgisi qo'shma."
+                 if json_mode else "")
+    oxirgi = ""
+    for model in CF_MATN_MODELLAR:
+        try:
+            r = requests.post(
+                f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT}"
+                f"/ai/run/{model}",
+                headers={"Authorization": f"Bearer {CF_TOKEN}"},
+                json={"messages": [{"role": "user",
+                                    "content": prompt + qoshimcha}],
+                      "temperature": max(0.1, min(1.0, temperature)),
+                      "max_tokens": min(max_tokens, 4096)},
+                timeout=180)
+        except requests.RequestException as e:
+            oxirgi = f"{model}: tarmoq — {str(e)[:120]}"
+            continue
+        if r.status_code != 200:
+            oxirgi = f"{model}: HTTP {r.status_code} {r.text[:180]}"
+            print(f"[cloudflare] {oxirgi}")
+            continue
+        j = r.json()
+        out = ((j.get("result") or {}).get("response") or "").strip()
+        if not out:
+            oxirgi = f"{model}: bo'sh javob"
+            continue
+        if json_mode:
+            out = re.sub(r"^```(?:json)?|```$", "", out.strip(),
+                         flags=re.M).strip()
+        print(f"[cloudflare] matn tayyor — {model}")
+        return out
+    raise RuntimeError(f"Cloudflare matn modellari ishlamadi: {oxirgi}")
 
 
 # Grok hisobida kredit bo'lmasa har safar 403 qaytaradi va bekorga
