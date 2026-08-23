@@ -1839,33 +1839,77 @@ def send_preview(post, deadline, round_no):
 
 
 def tasdiq_sora(post, kutish=10):
-    """Haftalik ro'yxatda tasdiqlanmagan hikoya uchun ruxsat so'raydi.
+    """Tasdiqlanmagan hikoya uchun adminda ruxsat so'raydi.
 
+    Tugmani ham, oddiy gapni ham tushunadi ("chiqar", "ha", "yo'q").
     Javob bo'lmasa — kanal jim qolmasligi uchun baribir chiqaradi.
-    Chiqarish kerak bo'lsa True, o'tkazib yuborish kerak bo'lsa False.
     """
+    kun = post.get("day")
     try:
         offset = tg_drain()
         tg_send_post(TELEGRAM_ADMIN_ID, post)
         kb = {"inline_keyboard": [[
-            {"text": "✅ Chiqaraver", "callback_data": "haftapub"},
-            {"text": "⏭ Bugun o'tkaz", "callback_data": "haftaskip"},
+            {"text": "\u2705 Chiqaraver", "callback_data": "haftapub"},
+            {"text": "\u23ed Bugun o'tkaz", "callback_data": "haftaskip"},
         ]]}
         ctrl = tg_msg(TELEGRAM_ADMIN_ID,
-                      f"{post.get('day')}-hikoya haftalik ro'yxatda "
-                      f"tasdiqlanmagan edi.\n"
-                      f"{kutish} daqiqa kutaman — javob bo'lmasa chiqaraman.",
-                      markup=kb)
-        cq, _ = tg_wait_button(offset,
-                               time.time() + kutish * 60,
-                               qabul=("haftapub", "haftaskip"))
-        tg_clear_markup(TELEGRAM_ADMIN_ID, ctrl["message_id"])
-        if cq is None:
-            return True
-        tg_answer(cq["id"], "Qabul qilindi")
-        return (cq.get("data") or "") != "haftaskip"
+                      f"{kun}-hikoya haftalik ro'yxatda tasdiqlanmagan edi.\n"
+                      f"Tugmani bosing yoki shunchaki <b>\"chiqar\"</b> deb "
+                      f"yozing.\n"
+                      f"{kutish} daqiqa kutaman \u2014 javob bo'lmasa "
+                      f"o'zim chiqaraman.", markup=kb)
+        oxir_vaqt = time.time() + kutish * 60
+        qaror = True
+        while time.time() < oxir_vaqt:
+            qolgan = max(1, min(30, int(oxir_vaqt - time.time())))
+            try:
+                ups = tg_call("getUpdates",
+                              data={"offset": offset, "timeout": qolgan,
+                                    "allowed_updates": json.dumps(
+                                        ["message", "callback_query"])},
+                              timeout=qolgan + 20)
+            except RuntimeError as e:
+                log(f"[tasdiq] getUpdates: {e}")
+                time.sleep(3)
+                continue
+            javob = None
+            for u in ups or []:
+                offset = u["update_id"] + 1
+                cq = u.get("callback_query")
+                if cq:
+                    if str((cq.get("from") or {}).get("id")) != str(TELEGRAM_ADMIN_ID):
+                        continue
+                    tg_answer(cq["id"], "Qabul qilindi")
+                    javob = "yoq" if cq.get("data") == "haftaskip" else "ha"
+                    continue
+                msg = u.get("message") or {}
+                if str((msg.get("from") or {}).get("id")) != str(TELEGRAM_ADMIN_ID):
+                    continue
+                tur = _javob_turi(msg.get("text", ""))
+                if tur:
+                    javob = tur
+                else:
+                    tg_msg(TELEGRAM_ADMIN_ID,
+                           f"{kun}-hikoyani hozir chiqaraymi? "
+                           f"<b>chiqar</b> yoki <b>yo'q</b> deb yozing.")
+            if javob:
+                qaror = (javob == "ha")
+                break
+        try:
+            tg_clear_markup(TELEGRAM_ADMIN_ID, ctrl["message_id"])
+        except Exception:
+            pass
+        if qaror and kun:
+            # Ikkinchi marta so'ramaslik uchun tasdiqlangan deb belgilaymiz
+            tasdiq_qosh([kun])
+            tg_msg(TELEGRAM_ADMIN_ID, f"\u2705 {kun}-hikoya chiqarilmoqda...")
+        elif kun:
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   f"\u23ed {kun}-hikoya bugun chiqmadi. Xohlagan paytingizda "
+                   f"\"{kun}-hikoyani chiqar\" desangiz \u2014 chiqaraman.")
+        return qaror
     except Exception as e:
-        log(f"[tasdiq] so'rash xatosi: {e} — post baribir chiqadi")
+        log(f"[tasdiq] so'rash xatosi: {e} \u2014 post baribir chiqadi")
         return True
 
 
@@ -2241,7 +2285,7 @@ _KALIT_SOZLAR = [
       "kerakmas", "kerak emas"), "ochir"),
     (("tahrir", "qayta qil", "qaytadan", "boshqa rasm", "sig'ma", "sigma",
       "almashtir", "o'zgartir", "ozgartir", "tuzat", "chiroyli emas"), "tahrirla"),
-    (("hikoya", "hikoyani", "story"), "hikoya"),
+    (("hikoya", "hikoyani", "story", "chiqar", "tasdiq"), "hikoya"),
     (("dars", "kurs"), "dars"),
     (("yangilik", "xabar", "news"), "yangilik"),
     (("haftalik", "hafta", "kelgusi", "kelasi"), "haftalik"),
@@ -2252,6 +2296,32 @@ _KALIT_SOZLAR = [
 _TASDIQ_SOZLAR = ("ha", "xa", "mayli", "bo'ladi", "boladi", "to'g'ri", "togri",
                   "shu", "aynan", "qil", "davom", "ok", "okay", "zo'r", "zor")
 _RAD_SOZLAR = ("yo'q", "yoq", "kerakmas", "kerak emas", "bekor", "shart emas")
+
+# Rozilik / rad javobini SUN'IY INTELLEKTSIZ tanish uchun.
+# API ishlamay qolsa ham bot "ha" va "yo'q" ni doim tushunadi.
+_YOQ_NAQSH = re.compile(
+    r"\b(yo'?q|kerakmas|kerak\s*emas|bekor|shart\s*emas|to'?xta\w*|"
+    r"o'?tkaz\w*|chiqarma\w*|yuborma\w*|qilma\w*|keyinroq|hozirmas)\b")
+_HA_NAQSH = re.compile(
+    r"\b(ha+|xa+|mayli|bo'?ladi|bo'?pti|to'?g'?ri|togri|aynan|davom|ok|okey|"
+    r"okay|zo'?r|zor|xop|hop|tasdiq\w*|chiqar(?!ma)\w*|yubor(?!ma)\w*|"
+    r"qilaver\w*|qilsin|bo'?laver\w*)\b")
+
+
+def _javob_turi(matn):
+    """Adminning gapi rozilikmi yoki radmi. Bilmasa None.
+
+    Bu funksiya hech qanday API'ga bormaydi — shuning uchun Gemini
+    ham, Grok ham o'lgan bo'lsa ham ishlaydi.
+    """
+    m = (matn or "").lower().strip()
+    if not m:
+        return None
+    if _YOQ_NAQSH.search(m):
+        return "yoq"
+    if _HA_NAQSH.search(m):
+        return "ha"
+    return None
 
 
 # Juda aniq, qisqa so'rovlar. Bularga Gemini kerak emas — darhol bajariladi.
@@ -2320,10 +2390,12 @@ def oddiy_tushun(matn):
             return {"amal": amal, "raqam": raqam, "ishonch": 55, "javob": "",
                     "savol": f"Sizni to'g'ri tushundimmi — {nomi} kerakmi?"}
     return {"amal": "javob", "raqam": None, "ishonch": 100, "savol": "",
-            "javob": "Hozir aqlim ishlamayapti (API javob bermayapti), "
-                     "lekin sizni eshitdim. Biroz aniqroq aytsangiz — "
-                     "masalan post chiqaraymi, o'chiraymi yoki holatni "
-                     "aytaymi — bajaraman."}
+            "javob": "Sizni eshitdim, lekin nima qilishimni aniq "
+                     "tushunmadim. Shulardan birini ayting:\n"
+                     "\u2022 <b>chiqar</b> \u2014 navbatdagi hikoyani chiqaraman\n"
+                     "\u2022 <b>dars</b> yoki <b>yangilik</b> \u2014 o'sha postni tayyorlayman\n"
+                     "\u2022 <b>o'chir</b> \u2014 kanaldagi oxirgi postni o'chiraman\n"
+                     "\u2022 <b>haftalik</b> \u2014 kelgusi 7 kunni ko'rsataman"}
 
 
 def _tasdiq_ochir(entry, tahrir):
@@ -2415,8 +2487,23 @@ def matnni_ishla(matn):
     # Adminning har bir gapi GitHub kundaligiga tushadi (fonda, kutmasdan)
     gh_havola = gh_suhbat_fonda("Admin", m)
 
-    # 1) Aniq va qisqa so'rov bo'lsa — Gemini'ga bormaymiz, darhol bajaramiz
-    d = None if kut else tez_tushun(m)
+    # 1) Savol kutilayotgan edi — "ha / yo'q / chiqar" ni API'siz tushunamiz.
+    #    Shu tufayli Gemini o'lgan bo'lsa ham tasdiq doim ishlaydi.
+    d = None
+    if kut:
+        tur = _javob_turi(m)
+        if tur == "yoq":
+            _KUTILMOQDA[0] = None
+            _javob_ber("Tushundim, tegmadim.")
+            return
+        if tur == "ha":
+            log("[listen] tasdiq (API'siz)")
+            d = {"amal": kut["amal"], "raqam": kut.get("raqam"),
+                 "ishonch": 100, "javob": "", "savol": "",
+                 "kalit": kut.get("kalit", ""),
+                 "qiymat": kut.get("qiymat", "")}
+    else:
+        d = tez_tushun(m)
     if d:
         log(f"[listen] tezkor: {d['amal']}")
     else:
@@ -2599,6 +2686,14 @@ def listen(minutes=340):
                                     ["message", "callback_query"])},
                           timeout=60)
         except Exception as e:
+            xato = str(e).lower()
+            # Kunlik post workflow'i ham shu botni tinglayotgan bo'lsa —
+            # Telegram 409 beradi. Bir-birimizdan xabar o'g'irlamaslik
+            # uchun chetga chiqib turamiz, xabarlar yo'qolmaydi.
+            if "conflict" in xato or "terminated by other" in xato:
+                log("[listen] boshqa jarayon tinglayapti — 90 soniya kutaman")
+                time.sleep(90)
+                continue
             log(f"[listen] getUpdates: {e}")
             time.sleep(5)
             continue
