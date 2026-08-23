@@ -98,23 +98,30 @@ def gem_key():
 
 
 def gem_rotate_key():
-    """Keyingi zaxira kalitga o'tadi. Kalit qolmasa False qaytaradi."""
-    if _KEY_IDX[0] + 1 >= len(GEMINI_KEYS):
+    """Keyingi kalitga o'tadi — aylanma tartibda.
+
+    Ilgari oxirgi kalitga yetgach to'xtardi va bitta vaqtinchalik
+    kvota xatosi butun jarayonni o'lik kalitda qoldirardi. Endi
+    kalitlar aylanadi, urinishlar soni gem_post ichida cheklangan.
+    """
+    if len(GEMINI_KEYS) < 2:
         return False
-    _KEY_IDX[0] += 1
+    _KEY_IDX[0] = (_KEY_IDX[0] + 1) % len(GEMINI_KEYS)
     print(f"[gemini] kalit almashtirildi -> {_KEY_IDX[0] + 1}/{len(GEMINI_KEYS)}")
     return True
 
 GEMINI_TEXT_MODEL = os.getenv("GEMINI_TEXT_MODEL", "").strip() or "gemini-3.6-flash"
-GEMINI_IMAGE_MODEL = os.getenv("GEMINI_IMAGE_MODEL", "").strip() or "gemini-2.5-flash-image"
+GEMINI_IMAGE_MODEL = os.getenv("GEMINI_IMAGE_MODEL", "").strip() or "gemini-3.1-flash-image"
 
 # Google modellarni tez-tez eskirtiradi (masalan gemini-2.5-flash 2026
 # avgustda o'chirildi va 404 qaytara boshladi). Shuning uchun matn so'rovi
 # 404 (model topilmadi) qaytarsa, ro'yxatdagi keyingi modelga o'tamiz —
 # bot hech qachon "eskirgan model" sababli to'xtab qolmaydi.
+# 2026-avgust holatiga ko'ra tirik modellar. gemini-2.5-flash va
+# gemini-2.0-flash o'chirilgan (404 qaytaradi) — ro'yxatdan olib tashlandi.
 TEXT_MODEL_FALLBACKS = [
-    "gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash",
-    "gemini-2.0-flash",
+    "gemini-3.6-flash", "gemini-3.7-flash", "gemini-flash-latest",
+    "gemini-3.5-flash", "gemini-3.5-flash-lite",
 ]
 
 # Grok (xAI) — Gemini'ning HAMMA kaliti va modeli ishlamay qolgan taqdirdagi
@@ -1103,9 +1110,16 @@ def gh_sozlama_yoz(kalit, qiymat):
 GEM_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
+# Qaysi model nimani qabul qilmasligini bir marta o'rganib, keyin
+# o'sha modelga umuman yubormaymiz — har safar 400 olib vaqt yo'qotmaymiz.
+_THINKING_YOQ = set()
+_JSON_YOQ = set()
+
+
 def gem_post(model, body):
     last = None
-    for a in range(4):
+    # Har bir kalitga kamida bittadan imkon beramiz
+    for a in range(max(4, len(GEMINI_KEYS) + 2)):
         try:
             r = requests.post(f"{GEM_BASE}/{model}:generateContent",
                               params={"key": gem_key()}, json=body, timeout=240)
@@ -1119,11 +1133,22 @@ def gem_post(model, body):
                 last = f"HTTP {r.status_code}"
                 time.sleep(5 * (a + 1))
                 continue
-            # Ba'zi modellar thinkingConfig ni qo'llamaydi — olib tashlab qayta urinamiz
-            if (r.status_code == 400 and "thinking" in r.text.lower()
-                    and body.get("generationConfig", {}).pop("thinkingConfig", None)):
-                print("[gemini] thinkingConfig qo'llanmadi — usiz qayta urinilmoqda")
-                continue
+            # 400 = so'rov ichida modelga yoqmagan narsa bor.
+            # Gemini 3 modellari thinkingBudget ni QABUL QILMAYDI (ular
+            # thinkingLevel ishlatadi) va xato matnida "thinking" so'zi
+            # umuman yo'q — shuning uchun matnga qaramay olib tashlaymiz.
+            if r.status_code == 400:
+                gc = body.get("generationConfig", {})
+                if gc.pop("thinkingConfig", None) is not None:
+                    print(f"[gemini] {model}: thinkingConfig qo'llanmadi — "
+                          f"usiz qayta urinilmoqda")
+                    _THINKING_YOQ.add(model)
+                    continue
+                if gc.pop("responseMimeType", None) is not None:
+                    print(f"[gemini] {model}: JSON rejimi qo'llanmadi — "
+                          f"usiz qayta urinilmoqda")
+                    _JSON_YOQ.add(model)
+                    continue
             raise RuntimeError(f"Gemini HTTP {r.status_code}: {r.text[:500]}")
         except requests.RequestException as e:
             last = str(e)
@@ -1133,30 +1158,36 @@ def gem_post(model, body):
 
 def gem_text(prompt, search=False, temperature=0.9, json_mode=False,
              max_tokens=16384):
-    body = {
-        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": temperature,
-            "maxOutputTokens": max_tokens,
-            # "O'ylash" rejimini o'chiramiz — u chiqish tokenlarini yeb qo'yadi
-            # va javob o'rtasida uzilib qolishiga sabab bo'ladi.
-            "thinkingConfig": {"thinkingBudget": 0},
-        },
-        "safetySettings": [{"category": c, "threshold": "BLOCK_ONLY_HIGH"} for c in (
-            "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH",
-            "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT")],
-    }
-    if search:
-        body["tools"] = [{"google_search": {}}]
-    elif json_mode:
-        body["generationConfig"]["responseMimeType"] = "application/json"
+    def _tana(model):
+        """Har bir model uchun so'rovni alohida yig'amiz — chunki
+        modellar bir xil sozlamani qabul qilmaydi."""
+        gc = {"temperature": temperature, "maxOutputTokens": max_tokens}
+        # "O'ylash" rejimini o'chiramiz — u chiqish tokenlarini yeb qo'yadi.
+        # Lekin Gemini 3 buni qabul qilmaydi, shuning uchun bir marta
+        # o'rgangandan keyin qayta yubormaymiz.
+        if model not in _THINKING_YOQ:
+            gc["thinkingConfig"] = {"thinkingBudget": 0}
+        b = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": gc,
+            "safetySettings": [
+                {"category": c, "threshold": "BLOCK_ONLY_HIGH"} for c in (
+                    "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH",
+                    "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "HARM_CATEGORY_DANGEROUS_CONTENT")],
+        }
+        if search:
+            b["tools"] = [{"google_search": {}}]
+        elif json_mode and model not in _JSON_YOQ:
+            gc["responseMimeType"] = "application/json"
+        return b
 
     models = [GEMINI_TEXT_MODEL] + [m for m in TEXT_MODEL_FALLBACKS
                                      if m != GEMINI_TEXT_MODEL]
     resp, last_err = None, None
     for model in models:
         try:
-            resp = gem_post(model, body)
+            resp = gem_post(model, _tana(model))
         except RuntimeError as e:
             last_err = e
             print(f"[gemini] {model}: {str(e)[:150]} — keyingi modelga o'tilmoqda")
@@ -1186,10 +1217,17 @@ def gem_text(prompt, search=False, temperature=0.9, json_mode=False,
     return out
 
 
+# Grok hisobida kredit bo'lmasa har safar 403 qaytaradi va bekorga
+# vaqt ketadi. Bir marta bilib olamiz-u, boshqa bezovta qilmaymiz.
+_GROK_OLDI = [""]
+
+
 def grok_text(prompt, json_mode=False, temperature=0.7, max_tokens=8192):
     """Gemini butunlay ishlamay qolganda ishlatiladigan ENG OXIRGI zaxira."""
     if not GROK_KEYS:
         raise RuntimeError("GROK_API_KEY yo'q — zaxira ishlamaydi")
+    if _GROK_OLDI[0]:
+        raise RuntimeError(_GROK_OLDI[0])
     models = [GROK_MODEL] + [m for m in GROK_MODEL_FALLBACKS if m != GROK_MODEL]
     last = None
     for model in models:
@@ -1221,7 +1259,16 @@ def grok_text(prompt, json_mode=False, temperature=0.7, max_tokens=8192):
                 last = "Grok bo'sh javob qaytardi"
                 continue
             last = f"HTTP {r.status_code}: {r.text[:200]}"
-            if r.status_code in (401, 403, 404):
+            if r.status_code in (401, 403):
+                # Kalit yaroqsiz yoki hisobda kredit yo'q — bu model
+                # almashtirish bilan tuzalmaydi, butun Grokni o'chiramiz.
+                sabab = ("Grok hisobida kredit yo'q (xAI konsolida "
+                         "to'ldirish kerak)" if "credit" in r.text.lower()
+                         or "licen" in r.text.lower()
+                         else "Grok kaliti qabul qilinmadi")
+                _GROK_OLDI[0] = sabab
+                raise RuntimeError(sabab)
+            if r.status_code == 404:
                 model_died = True
         if model_died:
             continue
@@ -1246,10 +1293,10 @@ def gem_json(prompt, search=False, temperature=0.9, attempts=3):
 
 
 IMAGE_MODEL_FALLBACKS = [
-    "gemini-3.6-flash-image",
+    "gemini-3.1-flash-image",
+    "gemini-3-pro-image",
+    "gemini-3.1-flash-lite-image",
     "gemini-2.5-flash-image",
-    "gemini-2.5-flash-image-preview",
-    "gemini-2.0-flash-preview-image-generation",
 ]
 
 
