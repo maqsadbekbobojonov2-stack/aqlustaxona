@@ -3226,6 +3226,33 @@ def mehmon_tugma(cq):
                   alert=True)
 
 
+def pin_post():
+    """pinned.txt faylini kanalga chiqarib, qadab qo'yadi (pin)."""
+    fayl = ROOT / "pinned.txt"
+    if not fayl.exists():
+        raise RuntimeError("pinned.txt topilmadi")
+    matn = fayl.read_text(encoding="utf-8").strip()
+    if not matn:
+        raise RuntimeError("pinned.txt bo'sh")
+    r = tg_call("sendMessage", data={
+        "chat_id": TELEGRAM_CHANNEL, "text": matn,
+        "parse_mode": "HTML", "disable_web_page_preview": "true"})
+    mid = r.get("message_id")
+    log(f"[pin] kanalga chiqdi — message_id={mid}")
+    try:
+        tg_call("pinChatMessage", data={
+            "chat_id": TELEGRAM_CHANNEL, "message_id": mid,
+            "disable_notification": "true"})
+        log("[pin] qadab qo'yildi")
+        holat = "chiqdi va qadab qo'yildi"
+    except Exception as e:
+        log(f"[pin] qadash ishlamadi: {e}")
+        holat = ("chiqdi, lekin qadash ishlamadi — botga kanalda "
+                 f"«Pin messages» huquqini bering.\n<code>{str(e)[:200]}</code>")
+    tg_msg(TELEGRAM_ADMIN_ID, f"📌 Tanishtiruv posti {holat}.")
+    return mid
+
+
 def listen(minutes=340):
     """Botni tinglash rejimi. Admin buyruqlarini qabul qiladi."""
     log(f"[listen] boshlandi — {minutes} daqiqa")
@@ -3582,6 +3609,8 @@ def main():
                     help="tinglash rejimi necha daqiqa ishlasin")
     ap.add_argument("--weekly", action="store_true",
                     help="kelgusi 7 kunlik postlarni adminga yuborish")
+    ap.add_argument("--pin", action="store_true",
+                    help="pinned.txt ni kanalga chiqarib, qadab qo'yish")
     args = ap.parse_args()
 
     if args.day:
@@ -3603,6 +3632,14 @@ def main():
             return 0
         except Exception as e:
             log(f"[FATAL] haftalik ko'rik: {e}")
+            return 1
+
+    if args.pin:
+        try:
+            pin_post()
+            return 0
+        except Exception as e:
+            log(f"[FATAL] pin: {e}")
             return 1
 
     if args.doctor:
