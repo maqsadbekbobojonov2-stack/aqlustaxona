@@ -817,7 +817,9 @@ def make_card(title, badge, bg_path=None, out=None):
     Bo'lmasa — brend rangidagi gradient fon chiziladi.
     """
     from PIL import Image, ImageDraw, ImageFilter
-    W, H = 1280, 720
+    # 1920x1080 — Telegram siqqanidan keyin ham tiniq qolsin.
+    W, H = 1920, 1080
+    S = W / 1280.0          # eski o'lchamlarga nisbatan koeffitsient
     out = Path(out or (BUILD / "card.png"))
 
     if bg_path and Path(bg_path).exists():
@@ -829,6 +831,12 @@ def make_card(title, badge, bg_path=None, out=None):
         x = (img.width - W) // 2
         y = (img.height - H) // 2
         img = img.crop((x, y, x + W, y + H))
+        # Kattalashtirgandan keyin yumshab qolgan detallarni qaytaramiz.
+        if r > 1.02:
+            img = img.filter(ImageFilter.UnsharpMask(
+                radius=2.0,
+                percent=int(min(120, 50 + 80 * (r - 1.0))),
+                threshold=3))
     else:
         img = Image.new("RGB", (W, H), (32, 28, 26))
         d0 = ImageDraw.Draw(img)
@@ -852,34 +860,38 @@ def make_card(title, badge, bg_path=None, out=None):
     img = Image.composite(Image.new("RGB", (W, H), (18, 15, 14)), img, veil)
 
     d = ImageDraw.Draw(img)
-    M = 78
+    M = int(78 * S)
+    sh = max(2, int(2 * S))          # yozuv soyasi
 
     # 1) Tepada hashtag
-    y = 56
+    y = int(56 * S)
     if badge:
-        bf = _font(34)
-        d.text((M + 2, y + 2), badge, font=bf, fill=(0, 0, 0))
+        bf = _font(int(34 * S))
+        d.text((M + sh, y + sh), badge, font=bf, fill=(0, 0, 0))
         d.text((M, y), badge, font=bf, fill=(232, 145, 112))
-        y += 56
+        y += int(56 * S)
 
     # 2) Uning tagida sarlavha — sig'maguncha kichraytiramiz
-    size = 76
-    while size >= 40:
+    size = int(76 * S)
+    kichik = int(40 * S)
+    while size >= kichik:
         f = _font(size)
         lines = _wrap(d, title, f, W - 2 * M)
         lh = int(size * 1.20)
-        if len(lines) * lh <= 300:
+        if len(lines) * lh <= int(300 * S):
             break
-        size -= 5
+        size -= max(1, int(5 * S))
     for ln in lines:
-        d.text((M + 2, y + 2), ln, font=f, fill=(0, 0, 0))
+        d.text((M + sh, y + sh), ln, font=f, fill=(0, 0, 0))
         d.text((M, y), ln, font=f, fill=(255, 253, 251))
         y += lh
 
     # 3) Pastki chap burchakda kanal nomi
-    d.rectangle([M, H - 62, M + 92, H - 56], fill=(217, 119, 87))
-    cf = _font(26)
-    d.text((M + 112, H - 68), sozlama("kanal_nomi", "@aqlustaxonastartap"),
+    d.rectangle([M, H - int(62 * S), M + int(92 * S), H - int(56 * S)],
+                fill=(217, 119, 87))
+    cf = _font(int(26 * S))
+    d.text((M + int(112 * S), H - int(68 * S)),
+           sozlama("kanal_nomi", "@aqlustaxonastartap"),
            font=cf,
            fill=(228, 222, 216))
 
@@ -1370,15 +1382,18 @@ CF_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN", "").strip()
 FLUX_USLUB = (
     "3D render illustration, soft clay and glossy plastic material, "
     "rounded polished shapes, warm terracotta coral accent color, "
-    "cream white and light sand palette, softly blurred bright desk "
-    "background, natural window light, shallow depth of field, soft "
-    "realistic shadows, subtle rim light, highly detailed, premium "
-    "editorial 3D illustration, clean minimal composition, single clear "
-    "focal point, 16:9 wide")
+    "cream white and light sand palette, clean bright desk background, "
+    "natural window light, soft realistic shadows, subtle rim light, "
+    "razor sharp focus on the subject, crisp clean edges, ultra detailed "
+    "surfaces, high resolution octane render, premium editorial 3D "
+    "illustration, clean minimal composition, single large clear focal "
+    "point centered, 16:9 wide")
 
 FLUX_TAQIQ = ("no text, no words, no letters, no numbers, no logo, "
               "no watermark, no human face, no robot, no circuit board, "
-              "not a stock photo, not cluttered")
+              "not a stock photo, not cluttered, not blurry, "
+              "no heavy depth of field blur, no noise, no grain, "
+              "no motion blur, not low resolution")
 
 
 def flux_prompt(gap):
@@ -1399,7 +1414,7 @@ def _pollinations(prompt, out_path):
     p = flux_prompt(prompt)
     url = ("https://image.pollinations.ai/prompt/"
            + quote(p, safe="")
-           + "?width=1280&height=720&nologo=true&model=flux&enhance=true")
+           + "?width=1920&height=1080&nologo=true&model=flux&enhance=true")
     r = requests.get(url, timeout=180)
     if r.status_code != 200 or len(r.content) < 5000:
         raise RuntimeError(f"Pollinations HTTP {r.status_code}, "
