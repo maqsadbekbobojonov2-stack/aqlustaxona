@@ -1876,8 +1876,8 @@ def agent6_publish(post):
 #  8-QISM — OQIM
 # ══════════════════════════════════════════════════════════════════
 
-def build_post(avoid, label=""):
-    src = pick_source()
+def build_post(avoid, label="", src=None):
+    src = src or pick_source()
     if src == "hikoya":
         return build_story_post()
     if src == "kurs":
@@ -2868,11 +2868,19 @@ def weekly_preview():
             log(f"[haftalik] {n}-hikoya yuborilmadi: {e}")
     for n in darslar:
         try:
-            tg_msg(TELEGRAM_ADMIN_ID,
-                   f"<b>[{n}-dars]</b>\n\n" + _qisqa_naqsh(kurs_all()[n]))
+            # Dars aynan kanalga chiqadigan ko'rinishida — nano banana
+            # chizgan rasmi bilan birga ko'rsatiladi
+            post = build_kurs_post(n)
+            tg_send_post(TELEGRAM_ADMIN_ID, post)
             time.sleep(1)
         except Exception as e:
-            log(f"[haftalik] {n}-dars yuborilmadi: {e}")
+            log(f"[haftalik] {n}-dars rasm bilan chiqmadi: {e}")
+            try:
+                tg_msg(TELEGRAM_ADMIN_ID,
+                       f"<b>[{n}-dars]</b> (rasmsiz — rasm chizilmadi)\n\n"
+                       + _qisqa_naqsh(kurs_all()[n]))
+            except Exception as e2:
+                log(f"[haftalik] {n}-dars yuborilmadi: {e2}")
 
     # ── Yangilik mavzulari (matni chiqish kuni yoziladi) ────────
     if yangilik_kunlari:
@@ -2896,6 +2904,21 @@ def weekly_preview():
             tg_msg(TELEGRAM_ADMIN_ID,
                    "📰 Yangilik mavzularini hozir topa olmadim — "
                    "chiqish kuni jonli tayyorlanadi.")
+        # Yangilikdan bitta namuna — kanalga chiqadigan ko'rinishida,
+        # nano banana chizgan rasmi bilan
+        try:
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   "⏳ Yangilikdan bitta namuna tayyorlanmoqda...")
+            namuna = build_post([], "namuna", src="yangilik")
+            tg_send_post(TELEGRAM_ADMIN_ID, namuna)
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   "☝️ Yangilik shu ko'rinishda chiqadi. Bu faqat namuna — "
+                   "kanalga chiqmadi.")
+        except Exception as e:
+            log(f"[haftalik] yangilik namunasi chiqmadi: {e}")
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   f"Yangilik namunasini hozir tayyorlay olmadim: "
+                   f"<code>{str(e)[:200]}</code>")
 
     # ── 7 kunlikni tasdiqlash ───────────────────────────────────
     if hikoyalar or darslar:
