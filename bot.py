@@ -340,46 +340,56 @@ ko'ringandan so'ng.
 """
 
 IMAGE_STYLE = """
-A premium 3D render — the quality of a paid illustration, not a stock photo.
+A PHOTOREALISTIC 3D RENDER of a real-life scene — the quality of a
+high-end architectural / product visualisation. It must look like a real
+photograph of a real place, only rendered: full HD detail, physically
+correct light, real-world materials and proportions. NOT a cartoon, NOT a
+clay or plastic toy world, NOT a flat illustration, NOT a stylised
+figurine scene.
 
 MOST IMPORTANT RULE: the picture must EXPLAIN THE IDEA OF THE POST BY
 ITSELF. A person who only looks at the image, without reading a single
-word, should understand what the post is about. Build a small, clear 3D
-scene that acts out the idea — show the situation, the comparison, the
-before/after, the cause and effect. Do not settle for a decorative object
-that merely "looks business-like".
+word, should understand what the post is about. Stage a believable
+everyday moment that acts out the idea — hands at a desk, an open
+notebook, a workshop bench, a small shop counter, a table by a window.
+Show the actual situation the text talks about, not a riddle about it.
 
 Composition:
-1. BACKGROUND: clean, softly blurred environment (desk, laptop, office,
-   table by a window, cafe). Natural light, warm tones, shallow depth of
-   field. It must stay quiet and uncluttered.
-2. THE SCENE: beautiful, highly detailed 3D objects that stage the post's
-   core idea as directly and literally as possible. Rounded, smooth,
-   glossy-plastic or soft-clay material, gentle rim light, soft realistic
-   shadows, subtle reflections — volumetric, tactile, polished, like a
-   high-end 3D illustration.
+1. THE SCENE: an ordinary, believable moment, rendered with real-world
+   scale and real materials — paper, wood, fabric, brushed metal, glass,
+   ceramic, skin. Honest textures with fine detail: paper grain, wood
+   pores, fabric weave, slight wear.
+2. LIGHT: physically based rendering — natural daylight from a window or
+   warm indoor light, global illumination, soft realistic shadows, subtle
+   contact shadows and reflections. Nothing plastic or artificially
+   glossy.
+3. CAMERA: 50mm lens look, sharp focus on the subject, background gently
+   out of focus but still readable. Natural colours, true tones, HD, 8K
+   texture detail.
 
-Keep the scene simple: 1-3 objects maximum, one clear focal point. A
-clear, slightly exaggerated idea reads better than a crowded one.
+Keep it simple and honest: one clear subject, one clear action, 1-3
+objects. A real moment reads better than a crowded concept.
 
-COLORS: warm terracotta / coral accent (#D97757) as the highlight.
-Supporting: cream, white, light grey, light sand.
-Avoid deep blue and neon. No "cyber", "matrix" or "hacker" aesthetic.
+COLOURS: warm and natural — terracotta / coral accent (#D97757) as the
+highlight, supported by cream, wood, warm grey, light sand. Avoid neon,
+avoid heavy blue tint, avoid the "cyber / matrix / hacker" look.
 
 FORMAT: 16:9 horizontal. IMPORTANT — the TOP THIRD of the frame must stay
-calm and uncluttered (soft background only), because a title will be placed
-there. Position the hero object in the lower half, slightly left or right
-of centre.
+calm and uncluttered (plain wall, window light, empty background), because
+a title may be placed there. Put the main subject in the lower half.
 
 STRICT PROHIBITIONS:
 - NO written words, letters, numbers or logos anywhere in the image.
-  The meaning must come through the objects and the scene, not through
-  text. Simple wordless symbols (arrow, tick, cross, coin, graph line,
-  question mark) ARE allowed and encouraged when they make the idea
-  instantly readable.
-- No human faces (hands, shoulders are fine)
-- No robots, androids, brains, circuit boards or other AI cliches
-- No stock-photo artificiality — it must look natural and expensive
+- No cartoon, no clay / plastic / toy materials, no glossy figurines, no
+  flat vector illustration, no exaggerated cute proportions.
+- No jokey, absurd or surreal scenes. No visual metaphors that only work
+  as a pun. If a viewer would ask "what is this supposed to be?", the
+  image is wrong. It must match the text plainly.
+- No close-up human faces (hands, shoulders, a person seen from behind or
+  from the side are fine and encouraged).
+- No robots, androids, glowing brains, circuit boards or other AI cliches.
+- Not a cheesy corporate stock scene: no handshake over a globe, no people
+  in suits pointing at charts.
 """
 
 
@@ -1380,20 +1390,23 @@ CF_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN", "").strip()
 # IMAGE_STYLE'ni o'sha ko'yi yuborsak, rasm tushunarsiz chiqadi.
 # Shuning uchun bepul xizmatlarga alohida qisqa prompt yasaymiz.
 FLUX_USLUB = (
-    "3D render illustration, soft clay and glossy plastic material, "
-    "rounded polished shapes, warm terracotta coral accent color, "
-    "cream white and light sand palette, clean bright desk background, "
-    "natural window light, soft realistic shadows, subtle rim light, "
-    "razor sharp focus on the subject, crisp clean edges, ultra detailed "
-    "surfaces, high resolution octane render, premium editorial 3D "
-    "illustration, clean minimal composition, single large clear focal "
-    "point centered, 16:9 wide")
+    "photorealistic 3D render of a real life scene, hyperrealistic CGI, "
+    "physically based rendering, real world materials — wood, paper, "
+    "fabric, brushed metal, glass, ceramic, real skin, fine surface "
+    "texture detail, natural window daylight, global illumination, soft "
+    "realistic contact shadows, warm terracotta and cream natural palette, "
+    "50mm lens, razor sharp focus on the subject, crisp clean edges, "
+    "ultra detailed, 8K, high resolution octane render, believable "
+    "everyday moment, clean uncluttered composition, single clear focal "
+    "point, 16:9 wide")
 
 FLUX_TAQIQ = ("no text, no words, no letters, no numbers, no logo, "
-              "no watermark, no human face, no robot, no circuit board, "
-              "not a stock photo, not cluttered, not blurry, "
-              "no heavy depth of field blur, no noise, no grain, "
-              "no motion blur, not low resolution")
+              "no watermark, no close-up human face, no robot, "
+              "no circuit board, not cartoon, not clay, not plastic toy, "
+              "no figurine, not a flat illustration, not stylized, "
+              "not cute, not surreal, not absurd, not a joke, "
+              "not cluttered, not blurry, no heavy depth of field blur, "
+              "no noise, no grain, no motion blur, not low resolution")
 
 
 def flux_prompt(gap):
