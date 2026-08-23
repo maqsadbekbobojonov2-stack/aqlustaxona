@@ -492,6 +492,110 @@ def stories_state():
         return {"last_sent": 0, "sent": []}
 
 
+# ── Obunachilar va taklif tizimi ─────────────────────────────────
+OBUNA_FILE = ROOT / "obunachilar.json"
+SOVGA_FILE = ROOT / "cheklist.pdf"       # bepul PDF (repo ichida)
+SOVGA_NOM = "AqlUstaxona — Startapni noldan boshlash.pdf"
+
+_OBUNA = [None]          # xotiradagi nusxa
+_OBUNA_KIR = [False]     # o'zgardimi (GitHub'ga yozish kerakmi)
+_OBUNA_VAQT = [0.0]      # oxirgi yozilgan vaqt
+_SOVGA_ID = [""]         # Telegram file_id — ikkinchi martadan tez ketadi
+_BOT_NOM = [""]          # botning @username
+
+
+def bot_nomi():
+    """Botning @username'i — taklif havolasi uchun."""
+    if not _BOT_NOM[0]:
+        try:
+            _BOT_NOM[0] = tg_call("getMe", data={}).get("username", "")
+        except Exception as e:
+            log(f"[bot] getMe: {e}")
+    return _BOT_NOM[0]
+
+
+def obunachilar():
+    """{user_id: {kelgan, ism, sana, olgan}} — xotirada saqlanadi."""
+    if _OBUNA[0] is None:
+        try:
+            d = json.loads(OBUNA_FILE.read_text(encoding="utf-8"))
+            _OBUNA[0] = d if isinstance(d, dict) else {}
+        except Exception:
+            _OBUNA[0] = {}
+    return _OBUNA[0]
+
+
+def obuna_yoz(majburiy=False):
+    """O'zgarishlarni GitHub'ga yozadi. Tez-tez emas — 2 daqiqada bir marta."""
+    if not _OBUNA_KIR[0]:
+        return
+    if not majburiy and time.time() - _OBUNA_VAQT[0] < 120:
+        return
+    d = obunachilar()
+    matn = json.dumps(d, ensure_ascii=False, indent=1)
+    try:
+        OBUNA_FILE.write_text(matn, encoding="utf-8")
+    except Exception:
+        pass
+    try:
+        gh_yoz("obunachilar.json", matn,
+               f"chore: obunachilar ({len(d)} ta)")
+        _OBUNA_KIR[0] = False
+        _OBUNA_VAQT[0] = time.time()
+    except Exception as e:
+        log(f"[obuna] saqlanmadi: {e}")
+
+
+def taklif_soni(uid):
+    """Shu odam nechta odam olib kelgan."""
+    uid = str(uid)
+    return sum(1 for v in obunachilar().values()
+               if str(v.get("kelgan") or "") == uid)
+
+
+def taklif_havola(uid):
+    nom = bot_nomi()
+    if not nom:
+        return ""
+    return f"https://t.me/{nom}?start=r{uid}"
+
+
+def kanalga_obunami(uid):
+    """Odam kanalga obuna bo'lganmi. Xato bo'lsa — True deb hisoblaymiz
+    (bot kanalda admin bo'lmasa, odamni to'sib qo'ymaslik uchun)."""
+    try:
+        r = tg_call("getChatMember",
+                    data={"chat_id": TELEGRAM_CHANNEL, "user_id": uid},
+                    timeout=30)
+        return r.get("status") in ("creator", "administrator", "member")
+    except Exception as e:
+        log(f"[obuna] getChatMember: {e}")
+        return True
+
+
+def tg_document(chat, path, caption=None, markup=None):
+    """PDF yuboradi. Birinchi safar fayl yuklanadi, keyin file_id ishlatiladi."""
+    d = {"chat_id": chat, "parse_mode": "HTML"}
+    if caption:
+        d["caption"] = caption
+    if markup:
+        d["reply_markup"] = json.dumps(markup)
+    if _SOVGA_ID[0]:
+        d["document"] = _SOVGA_ID[0]
+        try:
+            return tg_call("sendDocument", data=d, timeout=60)
+        except Exception:
+            _SOVGA_ID[0] = ""      # file_id eskirgan — qaytadan yuklaymiz
+    with open(path, "rb") as f:
+        r = tg_call("sendDocument", data=d,
+                    files={"document": (SOVGA_NOM, f)}, timeout=180)
+    try:
+        _SOVGA_ID[0] = (r.get("document") or {}).get("file_id", "")
+    except Exception:
+        pass
+    return r
+
+
 # ── Haftalik tasdiq ──────────────────────────────────────────────
 TASDIQ_FILE = ROOT / "tasdiq.json"
 
@@ -1684,11 +1788,13 @@ def tg_clear_markup(chat, mid):
         pass
 
 
-def tg_answer(cb_id, text=None):
+def tg_answer(cb_id, text=None, alert=False):
     try:
         d = {"callback_query_id": cb_id}
         if text:
             d["text"] = text
+        if alert:
+            d["show_alert"] = "true"
         tg_call("answerCallbackQuery", data=d)
     except RuntimeError:
         pass
@@ -2929,6 +3035,197 @@ def tugmani_ishla(cq):
             tg_msg(TELEGRAM_ADMIN_ID, f"❌ Chiqmadi: {str(e)[:400]}")
 
 
+# ══════════════════════════════════════════════════════════════════
+#  MEHMONLAR — bepul PDF va taklif tizimi
+# ══════════════════════════════════════════════════════════════════
+
+def _kanal_havola():
+    k = TELEGRAM_CHANNEL.lstrip("@")
+    return f"https://t.me/{k}"
+
+
+def _obuna_tugma(payload=""):
+    tugma = [[{"text": "📢 Kanalga obuna bo'lish", "url": _kanal_havola()}],
+             [{"text": "✅ Obuna bo'ldim", "callback_data": f"tekshir:{payload}"}]]
+    return {"inline_keyboard": tugma}
+
+
+def mehmon_start(uid, ism, payload):
+    """/start bosgan mehmon. payload = 'r123456' bo'lishi mumkin."""
+    d = obunachilar()
+    yangi = str(uid) not in d
+    if yangi:
+        kelgan = ""
+        if payload.startswith("r"):
+            r = payload[1:].strip()
+            if r.isdigit() and r != str(uid):
+                kelgan = r
+        d[str(uid)] = {"ism": ism, "kelgan": kelgan,
+                       "sana": now().strftime("%Y-%m-%d %H:%M"),
+                       "olgan": False}
+        _OBUNA_KIR[0] = True
+
+    if not kanalga_obunami(uid):
+        tg_msg(uid,
+               "🎁 <b>Bepul qo'llanma: «Startapni noldan boshlash»</b>\n\n"
+               "30 kunlik amaliy cheklist — har kuni bitta aniq vazifa, "
+               "g'oyani tekshirishdan birinchi to'lovgacha. Ichida 3 ta "
+               "tayyor shablon ham bor.\n\n"
+               "Olish uchun avval kanalga obuna bo'ling — keyin "
+               "«Obuna bo'ldim» tugmasini bosing.",
+               markup=_obuna_tugma(payload))
+        return
+    mehmon_sovga(uid)
+
+
+def mehmon_sovga(uid):
+    """Obuna tasdiqlangan — PDF va taklif havolasini beradi."""
+    d = obunachilar()
+    yozuv = d.setdefault(str(uid), {"ism": "", "kelgan": "",
+                                    "sana": now().strftime("%Y-%m-%d %H:%M"),
+                                    "olgan": False})
+    if not SOVGA_FILE.exists():
+        tg_msg(uid, "Qo'llanma hozir tayyorlanmoqda — birozdan keyin urinib "
+                    "ko'ring. Kanalda esa postlar allaqachon chiqyapti 👇\n"
+                    + _kanal_havola())
+        return
+    try:
+        tg_document(
+            uid, SOVGA_FILE,
+            caption="🎁 <b>Startapni noldan boshlash</b>\n"
+                    "30 kunlik cheklist · 3 ta shablon\n\n"
+                    "Birinchi sahifadan boshlang va kuniga bitta vazifani "
+                    "bajaring. Shoshilmang — izchillik muhim.")
+    except Exception as e:
+        log(f"[mehmon] PDF yuborilmadi: {e}")
+        tg_msg(uid, "Qo'llanmani yuborishda muammo bo'ldi. "
+                    "Birozdan keyin /start bosing.")
+        return
+
+    if not yozuv.get("olgan"):
+        yozuv["olgan"] = True
+        _OBUNA_KIR[0] = True
+        # Adminga xabar — yangi odam qo'shildi
+        try:
+            kim = yozuv.get("kelgan")
+            qosh = ""
+            if kim:
+                qosh = f"\nKim orqali: <code>{kim}</code>"
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   f"👤 Yangi odam qo'llanmani oldi: "
+                   f"{html.escape(yozuv.get('ism') or str(uid))}{qosh}\n"
+                   f"Jami: <b>{len(d)}</b> ta")
+        except Exception:
+            pass
+
+    hav = taklif_havola(uid)
+    if hav:
+        tg_msg(uid,
+               "📣 <b>Do'stingizga ham yuboring</b>\n\n"
+               "Quyidagi havola — sizniki. Kim shu havola orqali kelsa, "
+               "sizning hisobingizga yoziladi.\n\n"
+               f"<code>{hav}</code>\n\n"
+               "Hozircha siz olib kelgan odamlar: "
+               f"<b>{taklif_soni(uid)}</b> ta\n\n"
+               "Reyting: /top  ·  Havolangiz: /taklif",
+               markup={"inline_keyboard": [[
+                   {"text": "📤 Do'stga yuborish",
+                    "url": "https://t.me/share/url?url=" + hav
+                           + "&text=" + "Startap bo'yicha bepul 30 kunlik "
+                                        "qo'llanma - menga foydali bo'ldi"}]]})
+
+
+def mehmon_top(uid):
+    d = obunachilar()
+    hisob = {}
+    for v in d.values():
+        k = str(v.get("kelgan") or "")
+        if k:
+            hisob[k] = hisob.get(k, 0) + 1
+    if not hisob:
+        tg_msg(uid, "Hozircha reyting bo'sh — birinchi bo'lish imkoniyati "
+                    "sizda 🙂\nHavolangiz: /taklif")
+        return
+    top = sorted(hisob.items(), key=lambda x: -x[1])[:10]
+    qator = []
+    for i, (k, n) in enumerate(top, 1):
+        ism = (d.get(k) or {}).get("ism") or f"#{k[-4:]}"
+        belgi = "🥇🥈🥉"[i - 1] if i <= 3 else f"{i}."
+        meniki = " ← siz" if str(k) == str(uid) else ""
+        qator.append(f"{belgi} {html.escape(ism)} — <b>{n}</b>{meniki}")
+    tg_msg(uid, "🏆 <b>Eng ko'p odam olib kelganlar</b>\n\n"
+                + "\n".join(qator)
+                + f"\n\nSizniki: <b>{taklif_soni(uid)}</b> ta · /taklif")
+
+
+def mehmon_ishla(msg):
+    """Admin bo'lmagan odamdan kelgan xabar."""
+    frm = msg.get("from") or {}
+    uid = frm.get("id")
+    if not uid:
+        return
+    ism = (frm.get("first_name") or "").strip() or frm.get("username") or ""
+    matn = (msg.get("text") or "").strip()
+    past = matn.lower()
+
+    if past.startswith("/start"):
+        payload = matn[6:].strip()
+        mehmon_start(uid, ism, payload)
+        return
+    if past.startswith("/taklif") or past.startswith("/havola"):
+        hav = taklif_havola(uid)
+        tg_msg(uid, ("📣 <b>Sizning havolangiz</b>\n\n"
+                     f"<code>{hav}</code>\n\n"
+                     f"Olib kelganlaringiz: <b>{taklif_soni(uid)}</b> ta")
+               if hav else "Havola hozir tayyor emas, keyinroq urinib ko'ring.")
+        return
+    if past.startswith("/top") or past.startswith("/reyting"):
+        mehmon_top(uid)
+        return
+    if past.startswith("/kitob") or past.startswith("/pdf") \
+            or past.startswith("/qollanma"):
+        if kanalga_obunami(uid):
+            mehmon_sovga(uid)
+        else:
+            tg_msg(uid, "Avval kanalga obuna bo'ling 👇",
+                   markup=_obuna_tugma())
+        return
+
+    tg_msg(uid,
+           "Salom! Men <b>AqlUstaxona</b> kanalining botiman.\n\n"
+           "🎁 /start — bepul 30 kunlik qo'llanmani olish\n"
+           "📣 /taklif — do'stlaringizni chaqirish havolasi\n"
+           "🏆 /top — eng faol odamlar reytingi\n\n"
+           "Savolingiz bo'lsa: @Maqsadbek_Bobojonov\n"
+           f"Kanal: {_kanal_havola()}")
+
+
+def mehmon_tugma(cq):
+    """Mehmon bosgan tugma."""
+    uid = (cq.get("from") or {}).get("id")
+    data = cq.get("data") or ""
+    if not data.startswith("tekshir:"):
+        tg_answer(cq["id"], "")
+        return
+    payload = data.split(":", 1)[1]
+    if kanalga_obunami(uid):
+        tg_answer(cq["id"], "Rahmat! Qo'llanma yuborilmoqda...")
+        ism = (cq.get("from") or {}).get("first_name") or ""
+        d = obunachilar()
+        if str(uid) not in d:
+            kelgan = payload[1:] if payload.startswith("r") else ""
+            d[str(uid)] = {"ism": ism,
+                           "kelgan": kelgan if kelgan.isdigit() else "",
+                           "sana": now().strftime("%Y-%m-%d %H:%M"),
+                           "olgan": False}
+            _OBUNA_KIR[0] = True
+        mehmon_sovga(uid)
+    else:
+        tg_answer(cq["id"],
+                  "Hali obuna ko'rinmayapti. Kanalga kiring va qayta bosing.",
+                  alert=True)
+
+
 def listen(minutes=340):
     """Botni tinglash rejimi. Admin buyruqlarini qabul qiladi."""
     log(f"[listen] boshlandi — {minutes} daqiqa")
@@ -2961,11 +3258,25 @@ def listen(minutes=340):
             if cq:
                 if str((cq.get("from") or {}).get("id")) == str(TELEGRAM_ADMIN_ID):
                     tugmani_ishla(cq)
+                else:
+                    try:
+                        mehmon_tugma(cq)
+                    except Exception as e:
+                        log(f"[mehmon] tugma xatosi: {e}")
                 continue
             msg = u.get("message") or {}
-            if str((msg.get("from") or {}).get("id")) != str(TELEGRAM_ADMIN_ID):
+            kim = str((msg.get("from") or {}).get("id") or "")
+            if kim != str(TELEGRAM_ADMIN_ID):
+                # Oddiy odam — bepul qo'llanma va taklif tizimi
+                if kim and (msg.get("chat") or {}).get("type") == "private":
+                    try:
+                        mehmon_ishla(msg)
+                    except Exception as e:
+                        log(f"[mehmon] xato: {e}")
                 continue
             matnni_ishla(msg.get("text", ""))
+        obuna_yoz()
+    obuna_yoz(majburiy=True)
     log("[listen] vaqt tugadi")
 
 
