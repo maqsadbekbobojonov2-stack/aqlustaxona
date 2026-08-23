@@ -190,6 +190,7 @@ SOZLAMA_KALITLAR = {
     "hikoya_belgi":     "Hikoya tepasidagi yozuv, {N} - kun raqami",
     "audio":            "Postlarga ovozli izoh yozilsinmi (ha / yo'q)",
     "hikoya_tasdiq":    "Hikoya chiqishidan oldin tasdiq so'ralsinmi (ha / yo'q)",
+    "ajratuvchi":       "Post ichidagi ajratuvchi chiziq ko'rinishi",
 }
 
 
@@ -484,28 +485,38 @@ def stories_state():
 TASDIQ_FILE = ROOT / "tasdiq.json"
 
 
-def tasdiqlar():
-    """Admin oldindan tasdiqlagan hikoya raqamlari."""
+def _tasdiq_fayl():
     try:
         d = json.loads(TASDIQ_FILE.read_text(encoding="utf-8"))
-        return {int(x) for x in d.get("hikoya", [])}
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def tasdiqlar(tur="hikoya"):
+    """Admin oldindan tasdiqlagan raqamlar. tur: hikoya yoki dars."""
+    try:
+        return {int(x) for x in _tasdiq_fayl().get(tur, [])}
     except Exception:
         return set()
 
 
-def tasdiq_qosh(nlar):
-    """Hikoya raqamlarini tasdiqlangan deb belgilaydi va GitHub'ga yozadi."""
-    hammasi = sorted(tasdiqlar() | {int(n) for n in nlar})[-90:]
-    matn = json.dumps({"hikoya": hammasi,
-                       "yangilangan": now().strftime("%Y-%m-%d %H:%M")},
-                      ensure_ascii=False, indent=1) + "\n"
+def tasdiq_qosh(nlar, tur="hikoya"):
+    """Raqamlarni tasdiqlangan deb belgilaydi va GitHub'ga yozadi."""
+    nlar = [int(n) for n in nlar]
+    if not nlar:
+        return ""
+    d = _tasdiq_fayl()
+    d[tur] = sorted(tasdiqlar(tur) | set(nlar))[-90:]
+    d["yangilangan"] = now().strftime("%Y-%m-%d %H:%M")
+    matn = json.dumps(d, ensure_ascii=False, indent=1) + "\n"
     try:
         TASDIQ_FILE.write_text(matn, encoding="utf-8")
     except OSError as e:
         log(f"[tasdiq] fayl yozilmadi: {e}")
     try:
         return gh_yoz("tasdiq.json", matn,
-                      f"tasdiq: {min(nlar)}-{max(nlar)} hikoya")
+                      f"tasdiq: {min(nlar)}-{max(nlar)} {tur}")
     except Exception as e:
         log(f"[tasdiq] GitHub'ga yozilmadi: {e}")
         return ""
@@ -703,7 +714,20 @@ Ichida:
 Yakun:
 - Bugun sinab ko'rish mumkin bo'lgan aniq harakat yoki bitta savol
 
-Uzunlik 500-900 belgi. Emoji eng ko'pi 1 ta. Hashtag yo'q.
+Uzunlik 500-900 belgi. Hashtag yo'q.
+
+## TELEGRAMDA KO'RINISHI (SMM)
+
+Post telefonda o'qiladi. Devor bo'lib turgan matnni hech kim o'qimaydi.
+
+- Har bir abzats 1-3 gapdan oshmasin, orasida bo'sh qator bo'lsin
+- Eng muhim raqam va natijani <b>qalin</b> qil — ko'z o'sha yerga tushsin
+- Sarlavhadan keyin bitta bo'sh qator, keyin zarba beruvchi birinchi gap
+- Xulosa qismida 3-4 ta qisqa qator bo'lsin, har biri bitta fikr,
+  boshida mos emoji (🎯 ⏱ 🤔 📆 kabi) — bu qism skanerlab o'qiladi
+- Oxirida bitta savol yoki aniq harakat, keyin kanal nomi
+- CAPS LOCK bilan baqirma, ko'p undov belgisi qo'yma
+- Ajratuvchi chiziq kerak bo'lsa faqat "━━━ ✦ ━━━" — uzun chizma
 """
 
 
@@ -887,14 +911,26 @@ def _attach_media(post):
     return post
 
 
-def _qisqa_naqsh(matn):
-    """Uzun ajratuvchi chiziqlarni qisqartiradi.
+# Faqat ajratuvchi belgilardan iborat qator
+_NAQSH_QATOR = re.compile(r"^[\s━─—▬=_✦✧✩◆◇●•·~*+]{5,}$")
 
-    Telefon ekranida "━━━━━━━━━━━━━ ✦ ━━━━━━━━━━━━━" ikki qatorga
-    bo'linib ketadi va xunuk ko'rinadi. 4 tadan qoldiriladi.
+
+def _qisqa_naqsh(matn):
+    """Ajratuvchi chiziqni qisqa qilib, o'rtaroqqa suradi.
+
+    Telefonda "━━━━━━━━━━━━━ ✦ ━━━━━━━━━━━━━" ikki qatorga bo'linib
+    ketadi. Endi qisqa bo'ladi va oldiga keng bo'shliq qo'yilib
+    matnning o'rtasiga yaqin turadi — kanalda chiroyli ko'rinadi.
     """
-    matn = re.sub(r"[━─—▬=_]{3,}", "━━━━", matn)
-    return matn
+    belgi = sozlama("ajratuvchi", "") or "\u2003\u2003\u2003\u2003\u2003━━━ ✦ ━━━"
+    qatorlar = []
+    for q in (matn or "").split("\n"):
+        t = q.strip()
+        if t and _NAQSH_QATOR.match(t):
+            qatorlar.append(belgi)
+        else:
+            qatorlar.append(q)
+    return "\n".join(qatorlar)
 
 
 def story_read(day):
@@ -1886,12 +1922,13 @@ def send_preview(post, deadline, round_no):
 
 
 def tasdiq_sora(post, kutish=10):
-    """Tasdiqlanmagan hikoya uchun adminda ruxsat so'raydi.
+    """Tasdiqlanmagan post uchun adminda ruxsat so'raydi.
 
     Tugmani ham, oddiy gapni ham tushunadi ("chiqar", "ha", "yo'q").
     Javob bo'lmasa — kanal jim qolmasligi uchun baribir chiqaradi.
     """
-    kun = post.get("day")
+    tur = "dars" if post.get("source") == "kurs" else "hikoya"
+    kun = post.get("kurs_n") if tur == "dars" else post.get("day")
     try:
         offset = tg_drain()
         tg_send_post(TELEGRAM_ADMIN_ID, post)
@@ -1900,7 +1937,7 @@ def tasdiq_sora(post, kutish=10):
             {"text": "\u23ed Bugun o'tkaz", "callback_data": "haftaskip"},
         ]]}
         ctrl = tg_msg(TELEGRAM_ADMIN_ID,
-                      f"{kun}-hikoya haftalik ro'yxatda tasdiqlanmagan edi.\n"
+                      f"{kun}-{tur} haftalik ro'yxatda tasdiqlanmagan edi.\n"
                       f"Tugmani bosing yoki shunchaki <b>\"chiqar\"</b> deb "
                       f"yozing.\n"
                       f"{kutish} daqiqa kutaman \u2014 javob bo'lmasa "
@@ -1932,12 +1969,12 @@ def tasdiq_sora(post, kutish=10):
                 msg = u.get("message") or {}
                 if str((msg.get("from") or {}).get("id")) != str(TELEGRAM_ADMIN_ID):
                     continue
-                tur = _javob_turi(msg.get("text", ""))
-                if tur:
-                    javob = tur
+                j = _javob_turi(msg.get("text", ""))
+                if j:
+                    javob = j
                 else:
                     tg_msg(TELEGRAM_ADMIN_ID,
-                           f"{kun}-hikoyani hozir chiqaraymi? "
+                           f"{kun}-{tur}ni hozir chiqaraymi? "
                            f"<b>chiqar</b> yoki <b>yo'q</b> deb yozing.")
             if javob:
                 qaror = (javob == "ha")
@@ -1948,12 +1985,12 @@ def tasdiq_sora(post, kutish=10):
             pass
         if qaror and kun:
             # Ikkinchi marta so'ramaslik uchun tasdiqlangan deb belgilaymiz
-            tasdiq_qosh([kun])
-            tg_msg(TELEGRAM_ADMIN_ID, f"\u2705 {kun}-hikoya chiqarilmoqda...")
+            tasdiq_qosh([kun], tur)
+            tg_msg(TELEGRAM_ADMIN_ID, f"\u2705 {kun}-{tur} chiqarilmoqda...")
         elif kun:
             tg_msg(TELEGRAM_ADMIN_ID,
-                   f"\u23ed {kun}-hikoya bugun chiqmadi. Xohlagan paytingizda "
-                   f"\"{kun}-hikoyani chiqar\" desangiz \u2014 chiqaraman.")
+                   f"\u23ed {kun}-{tur} bugun chiqmadi. Xohlagan paytingizda "
+                   f"\"{kun}-{tur}ni chiqar\" desangiz \u2014 chiqaraman.")
         return qaror
     except Exception as e:
         log(f"[tasdiq] so'rash xatosi: {e} \u2014 post baribir chiqadi")
@@ -1985,8 +2022,11 @@ def run(force_now=False, preview_only=False):
 
         # Tasdiqlanmagan hikoya bo'lsa — chiqish vaqtidan OLDIN so'raladi,
         # shunda post baribir o'z vaqtida chiqadi, kechikmaydi.
-        if (post.get("source") == "stories" and _ha("hikoya_tasdiq")
-                and post.get("day") not in tasdiqlar()):
+        _tur = post.get("source")
+        _raqam = post.get("kurs_n") if _tur == "kurs" else post.get("day")
+        _kalit = "dars" if _tur == "kurs" else "hikoya"
+        if (_tur in ("stories", "kurs") and _ha("hikoya_tasdiq")
+                and _raqam not in tasdiqlar(_kalit)):
             qoldi = (publish_at - now()).total_seconds() / 60
             kutish = int(max(1, min(PREVIEW_LEAD, qoldi - 1)))
             if not tasdiq_sora(post, kutish=kutish):
@@ -2607,24 +2647,32 @@ def tugmani_ishla(cq):
         if mid:
             tg_clear_markup(TELEGRAM_ADMIN_ID, mid)
         try:
-            birinchi, oxirgi = (int(x) for x in tok.split(":"))
+            h, _, d = tok.partition(":")
+            h1, h2 = (int(x) for x in h.split("-"))
+            d1, d2 = (int(x) for x in d.split("-")) if d else (0, 0)
         except ValueError:
             tg_answer(cq["id"], "Bu so'rov eskirgan.")
             return
         if amal == "haftayoq":
             tg_answer(cq["id"], "Aytavering")
             _KUTILMOQDA[0] = {"amal": "hikoya", "savol": "haftalik tuzatish"}
-            _javob_ber("Qaysi hikoyani va nimasini o'zgartiray? "
-                       "Masalan: \"3-hikoyaning sarlavhasi uzun\" yoki "
-                       "\"5-hikoyani boshqasi bilan almashtir\".")
+            _javob_ber("Qaysi birini va nimasini o'zgartiray? Masalan: "
+                       "\"3-hikoyaning sarlavhasi uzun\" yoki "
+                       "\"5-darsni boshqasi bilan almashtir\".")
             return
         tg_answer(cq["id"], "Tasdiqlandi")
-        nlar = list(range(birinchi, oxirgi + 1))
-        havola = tasdiq_qosh(nlar)
+        qismlar, havola = [], ""
+        if h1:
+            havola = tasdiq_qosh(range(h1, h2 + 1), "hikoya") or havola
+            qismlar.append(f"{h1}\u2013{h2}-hikoya")
+        if d1:
+            havola = tasdiq_qosh(range(d1, d2 + 1), "dars") or havola
+            qismlar.append(f"{d1}\u2013{d2}-dars")
         qosh = (f"\nGitHub'ga yozildi: <a href=\"{havola}\">commit</a>"
                 if havola else "")
-        _javob_ber(f"✅ {birinchi}–{oxirgi} hikoyalar tasdiqlandi. "
-                   f"Endi ular o'z vaqtida so'ramasdan chiqadi.{qosh}")
+        _javob_ber(f"\u2705 Tasdiqlandi: {', '.join(qismlar)}.\n"
+                   f"Hafta davomida boshqa so'ramayman \u2014 hammasi "
+                   f"kelishganimizdek chiqadi.{qosh}")
         return
 
     post = _PENDING.get(tok)
@@ -2810,19 +2858,28 @@ def weekly_preview():
             log(f"[haftalik] {n}-dars yuborilmadi: {e}")
 
     # ── 7 kunlikni tasdiqlash ───────────────────────────────────
-    if hikoyalar:
-        birinchi, oxirgi = hikoyalar[0], hikoyalar[-1]
+    if hikoyalar or darslar:
+        h1, h2 = (hikoyalar[0], hikoyalar[-1]) if hikoyalar else (0, 0)
+        d1, d2 = (darslar[0], darslar[-1]) if darslar else (0, 0)
+        nima = []
+        if hikoyalar:
+            nima.append(f"{len(hikoyalar)} ta hikoya")
+        if darslar:
+            nima.append(f"{len(darslar)} ta dars")
         kb = {"inline_keyboard": [[
-            {"text": f"✅ {birinchi}–{oxirgi} hikoyani tasdiqlayman",
-             "callback_data": f"hafta:{birinchi}:{oxirgi}"},
+            {"text": "✅ 7 kunlikni tasdiqlayman",
+             "callback_data": f"hafta:{h1}-{h2}:{d1}-{d2}"},
         ], [
             {"text": "✏️ O'zgartirishim bor",
-             "callback_data": f"haftayoq:{birinchi}:{oxirgi}"},
+             "callback_data": f"haftayoq:{h1}-{h2}:{d1}-{d2}"},
         ]]}
         tg_msg(TELEGRAM_ADMIN_ID,
-               f"Yuqoridagi <b>{len(hikoyalar)} ta hikoya</b> shu holicha "
+               f"Yuqoridagi <b>{' va '.join(nima)}</b> shu holicha "
                f"chiqaveradimi?\n"
-               f"Tasdiqlasangiz — o'z vaqtida so'ramasdan chiqadi.\n"
+               f"Tasdiqlasangiz — hafta davomida boshqa so'ramayman, "
+               f"hammasi o'z vaqtida chiqadi.\n"
+               f"Yangilik bunga kirmaydi — u jonli, har safar alohida "
+               f"ko'rsataman.\n\n"
                f"O'zgartirish kerak bo'lsa — shunchaki ayting, tuzataman.",
                markup=kb)
     log(f"[haftalik] {len(hikoyalar)} hikoya, {len(darslar)} dars yuborildi")
