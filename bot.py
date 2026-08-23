@@ -1420,6 +1420,34 @@ CF_MATN_MODELLAR = [
 ]
 
 
+def _cf_matn(j):
+    """Cloudflare javobidan matnni ajratadi.
+
+    Model turiga qarab javob har xil ko'rinishda keladi: oddiy satr,
+    {"response": "..."}, {"response": {"content": "..."}} yoki
+    OpenAI uslubidagi choices ro'yxati. Hammasini qamrab olamiz.
+    """
+    def matn(v, chuqur=0):
+        if v is None or chuqur > 4:
+            return ""
+        if isinstance(v, str):
+            return v
+        if isinstance(v, list):
+            return "".join(matn(x, chuqur + 1) for x in v)
+        if isinstance(v, dict):
+            for k in ("response", "content", "text", "output", "result",
+                      "message", "answer"):
+                if k in v:
+                    s = matn(v[k], chuqur + 1)
+                    if s:
+                        return s
+            ch = v.get("choices")
+            if isinstance(ch, list) and ch:
+                return matn(ch[0], chuqur + 1)
+        return ""
+    return matn(j.get("result") if isinstance(j, dict) else j).strip()
+
+
 def cf_text(prompt, json_mode=False, temperature=0.7, max_tokens=4096):
     """Cloudflare Workers AI orqali matn yozadi."""
     if not (CF_ACCOUNT and CF_TOKEN):
@@ -1446,8 +1474,12 @@ def cf_text(prompt, json_mode=False, temperature=0.7, max_tokens=4096):
             oxirgi = f"{model}: HTTP {r.status_code} {r.text[:180]}"
             print(f"[cloudflare] {oxirgi}")
             continue
-        j = r.json()
-        out = ((j.get("result") or {}).get("response") or "").strip()
+        try:
+            out = _cf_matn(r.json())
+        except Exception as e:
+            oxirgi = f"{model}: javobni o'qib bo'lmadi — {str(e)[:120]}"
+            print(f"[cloudflare] {oxirgi}")
+            continue
         if not out:
             oxirgi = f"{model}: bo'sh javob"
             continue
