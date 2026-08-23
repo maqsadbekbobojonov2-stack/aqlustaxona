@@ -2172,22 +2172,82 @@ def build_post(avoid, label="", src=None):
 
 
 def send_preview(post, deadline, round_no):
-    btn = ("🔄 Rasm/audioni qayta qilish" if post.get("source") == "stories"
-           else "🔄 Qayta qilish")
-    kb = {"inline_keyboard": [[{"text": btn, "callback_data": REDO_DATA}]]}
+    """Yangilik postini rasmi bilan adminga taklif qiladi."""
     tg_send_post(TELEGRAM_ADMIN_ID, post)
     label = (f"365 hikoya · {post['day']}-kun" if post.get("source") == "stories"
              else RUBRIC)
-    hint = ("\nTugma bosilsa — matn o'zgarmaydi, faqat rasm va audio qayta yaratiladi."
-            if post.get("source") == "stories" else "")
-    header = (f"<b>PREVIEW</b> · {label}\n"
-              f"Chiqish vaqti: <b>{deadline:%H:%M}</b>"
+    kb = {"inline_keyboard": [
+        [{"text": "✅ Chiqar", "callback_data": "news:pub"}],
+        [{"text": "\U0001F504 Boshqa mavzu", "callback_data": "news:redo"},
+         {"text": "❌ Bugun kerak emas", "callback_data": "news:skip"}],
+    ]}
+    mavzu = ((post.get("topic") or {}).get("topic") or "").strip()
+    rasm = "bor" if post.get("image_path") else "yo'q"
+    header = ("\U0001F4F0 <b>Yangilik taklifi</b> · " + label
               + (f" · {round_no}-variant" if round_no > 1 else "")
-              + "\nHech narsa bosmasangiz — o'sha vaqtda kanalga chiqadi."
-              + hint)
+              + (f"\nMavzu: <i>{html.escape(mavzu[:120])}</i>" if mavzu else "")
+              + f"\nRasm: <b>{rasm}</b>"
+              + f"\nRejadagi chiqish vaqti: <b>{deadline:%H:%M}</b>\n\n"
+              + "Tugmani bosing yoki shunchaki yozing: "
+              + "<b>chiqar</b> / <b>boshqa</b> / <b>yo'q</b>.\n"
+              + "<i>Javob bo'lmasa — belgilangan vaqtda o'zi chiqadi.</i>")
     ctrl = tg_msg(TELEGRAM_ADMIN_ID, header, markup=kb)
-    log(f"[preview] yuborildi (deadline {deadline:%H:%M})")
+    log(f"[preview] yangilik taklifi yuborildi (deadline {deadline:%H:%M})")
     return ctrl["message_id"]
+
+
+_BOSHQA_NAQSH = re.compile(
+    r"\b(boshqa|qayta|almashtir|yoqmadi|yangisi|boshqasi|redo)\b", re.I)
+
+
+def yangilik_javobi(offset, deadline_ts):
+    """Yangilik taklifiga javob kutadi: tugma ham, oddiy gap ham.
+
+    Qaytaradi: ("pub" | "redo" | "skip" | "kutildi", offset)
+    """
+    while True:
+        left = deadline_ts - time.time()
+        if left <= 0:
+            return "kutildi", offset
+        lp = max(1, min(25, int(left)))
+        try:
+            ups = tg_call("getUpdates",
+                          data={"offset": offset, "timeout": lp,
+                                "allowed_updates": json.dumps(
+                                    ["message", "callback_query"])},
+                          timeout=lp + 20)
+        except Exception as e:
+            xato = str(e).lower()
+            if "conflict" in xato or "terminated by other" in xato:
+                time.sleep(20)
+                continue
+            log(f"[yangilik] getUpdates: {e}")
+            time.sleep(3)
+            continue
+        for u in ups or []:
+            offset = max(offset, u["update_id"] + 1)
+            cq = u.get("callback_query")
+            if cq:
+                if str((cq.get("from") or {}).get("id")) != str(TELEGRAM_ADMIN_ID):
+                    continue
+                d = cq.get("data") or ""
+                if d.startswith("news:"):
+                    tg_answer(cq["id"], "Qabul qilindi")
+                    return d.split(":", 1)[1], offset
+                continue
+            msg = u.get("message") or {}
+            if str((msg.get("from") or {}).get("id")) != str(TELEGRAM_ADMIN_ID):
+                continue
+            matn = (msg.get("text") or "").strip()
+            if not matn:
+                continue
+            if _BOSHQA_NAQSH.search(matn):
+                return "redo", offset
+            j = _javob_turi(matn)
+            if j == "ha":
+                return "pub", offset
+            if j == "yoq":
+                return "skip", offset
 
 
 def tasdiq_sora(post, kutish=10):
@@ -2325,21 +2385,39 @@ def run(force_now=False, preview_only=False):
         time.sleep(wait)
 
     round_no, deadline = 1, publish_at
+    darhol = False
     while True:
         ctrl_id = send_preview(post, deadline, round_no)
-        cq, offset = tg_wait_button(offset, deadline.timestamp())
-        if cq is None:
+        javob, offset = yangilik_javobi(offset, deadline.timestamp())
+        try:
             tg_clear_markup(TELEGRAM_ADMIN_ID, ctrl_id)
+        except Exception:
+            pass
+
+        if javob == "skip":
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   "⏭ Yangilik bugun chiqmadi. Xohlagan paytingizda "
+                   "<b>\"yangilik tayyorla\"</b> desangiz — yangisini "
+                   "tayyorlayman.")
+            log("[yangilik] admin bekor qildi")
+            return
+
+        if javob == "pub":
+            darhol = True
             break
-        tg_answer(cq["id"], "Qabul qilindi. Yangi post tayyorlanmoqda...")
-        tg_clear_markup(TELEGRAM_ADMIN_ID, ctrl_id)
+
+        if javob == "kutildi":       # javob bo'lmadi — reja bo'yicha chiqadi
+            break
+
+        # javob == "redo"
         if round_no > MAX_REDO:
             tg_msg(TELEGRAM_ADMIN_ID,
                    f"⚠️ Qayta qilish limiti ({MAX_REDO}) tugadi. "
                    f"Oxirgi variant chiqariladi.")
             break
         avoid.append(post.get("topic", {}).get("topic", ""))
-        tg_msg(TELEGRAM_ADMIN_ID, "⏳ Yangi post yaratilmoqda — 2-3 daqiqa...")
+        tg_msg(TELEGRAM_ADMIN_ID,
+               "⏳ Boshqa mavzuda yangi post tayyorlanmoqda — 2-3 daqiqa...")
         round_no += 1
         try:
             post = build_post(avoid, f"{round_no}-variant")
@@ -2354,6 +2432,11 @@ def run(force_now=False, preview_only=False):
     if preview_only:
         log("[6-agent] --preview-only — kanalga chiqarilmadi")
         return
+    if not darhol:
+        kut = (publish_at - now()).total_seconds()
+        if kut > 0:
+            log(f"[jadval] chiqish vaqtigacha {int(kut)} soniya kutilmoqda")
+            time.sleep(kut)
     agent6_publish(post)
 
 
