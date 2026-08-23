@@ -251,8 +251,18 @@ tushuntiring. Masalan: "MVP (ya'ni eng oddiy ishlaydigan mahsulot)".
 2. Hook — 1-2 gap, boshlovchi duch keladigan real muammo yoki savol
 3. Asosiy qism — 2-4 qisqa abzas yoki 3-5 punktli ro'yxat.
    Har abzas 1-3 gap. Uzun devor matn yo'q
-4. Aniq misol — Claude'ga aynan nima yozish kerakligi, <code> tegi ichida
+4. Aniq misol yoki dalil — raqam, holat, yoki qadamlar ketma-ketligi
 5. Yakun — 1-2 gap, bugun sinab ko'rish mumkin bo'lgan aniq harakat
+
+## AI vositalari haqida — MUHIM
+Postning maqsadi startap qurishni o'rgatish, AI vositalarini
+reklama qilish EMAS.
+- Har postga "AI'ga shunday yozing" bo'limini QO'SHMA. Bu faqat
+  mavzuning o'zi aynan AI vositasi haqida bo'lsagina o'rinli
+- Aniq mahsulot nomini (Claude, ChatGPT va boshqalar) faqat
+  yangilikning o'zi o'sha mahsulot haqida bo'lsa yoz
+- Umumiy mavzularda yechim odamning o'z harakati bo'lsin:
+  kim bilan gaplashish, nimani hisoblash, qayerga murojaat qilish
 
 ## Uzunlik
 500-950 belgi. Telegram rasm captioni 1024 belgi — undan oshmasin.
@@ -821,13 +831,20 @@ Birinchi gap:
 - "Kecha ma'lum bo'ldiki" kabi sust boshlanish yo'q
 
 Ichida:
-- Nima bo'lgani — 1-2 gap, aniq
+- Nima bo'lgani — 1-2 gap, aniq. Kim, nima, qachon
 - Nega muhim — 1-2 gap
 - <b>Sizga nima beradi</b> — bu qism majburiy, amaliy bo'lsin
 - Faqat tekshirilgan raqam. Bo'lmasa — raqam yozma
+- Berilgan faktlardagi manba nomini matn ichida tilga ol
+  (masalan: "TechCrunch xabar berishicha...")
+
+QAT'IY: bu YANGILIK posti, AI vositasining reklamasi emas.
+"Claude'ga shunday yozing" kabi bo'lim QO'SHMA — yangilikning o'zi
+aynan o'sha vosita haqida bo'lsagina bundan mustasno.
 
 Yakun:
 - Bugun sinab ko'rish mumkin bo'lgan aniq harakat yoki bitta savol
+- Manba havolasi va kanal nomi AVTOMATIK qo'shiladi — ularni yozma
 
 Uzunlik 500-900 belgi. Hashtag yo'q.
 
@@ -1005,14 +1022,53 @@ Javobni FAQAT shu JSON ko'rinishida ber:
     topics = data.get("topics") if isinstance(data, dict) else data
     if not topics:
         raise RuntimeError("Yangilik topilmadi")
+
+    # Tanlangan mavzuga mos haqiqiy xabarlarni topib, havolasini biriktiramiz
+    for t in topics:
+        if isinstance(t, dict):
+            t["manbalar"] = _mos_manbalar(t, xabarlar)
+
     if hammasi:
         return topics
     seen = {t.lower().strip() for t in hist_topics(30) + avoid}
     for t in topics:
         if t.get("topic", "").lower().strip() not in seen:
-            log(f"[yangilik] {t['topic']}")
+            log(f"[yangilik] {t['topic']} "
+                f"({len(t.get('manbalar') or [])} ta manba)")
             return t
     return topics[0]
+
+
+_SOZ_NAQSH = re.compile(r"[a-z0-9']{4,}", re.I)
+
+
+def _mos_manbalar(mavzu, xabarlar, cheklov=3):
+    """Model tanlagan mavzuga eng mos keladigan haqiqiy xabarlarni topadi.
+
+    Sarlavha va faktlardagi so'zlar bilan xabar sarlavhasidagi so'zlarni
+    solishtiramiz — eng ko'p mos kelgani manba bo'ladi.
+    """
+    if not xabarlar:
+        return []
+    matn = " ".join([mavzu.get("topic", ""), mavzu.get("why", "")]
+                    + list(mavzu.get("key_facts") or []))
+    sozlar = {w.lower() for w in _SOZ_NAQSH.findall(matn)}
+    if not sozlar:
+        return []
+    ballar = []
+    for x in xabarlar:
+        if not (x.get("link") or "").startswith("http"):
+            continue
+        xs = {w.lower() for w in _SOZ_NAQSH.findall(x.get("title", ""))}
+        umumiy = len(sozlar & xs)
+        # Manba nomi faktlarda tilga olingan bo'lsa — qo'shimcha ball
+        nom = (x.get("source") or "").lower()
+        if nom and nom in matn.lower():
+            umumiy += 2
+        if umumiy >= 2:
+            ballar.append((umumiy, x))
+    ballar.sort(key=lambda p: -p[0])
+    return [x for _, x in ballar[:cheklov]]
 
 
 FONT_PATHS = [
@@ -1970,10 +2026,35 @@ def tg_delete_message(chat, message_id):
     return tg_call("deleteMessage", data={"chat_id": chat, "message_id": message_id})
 
 
+def imzo_qosh(text, post=None):
+    """Har bir post oxiriga manba havolalari va kanal imzosini qo'shadi."""
+    kanal = sozlama("kanal_nomi", "@aqlustaxonastartap")
+    text = (text or "").rstrip()
+
+    # 1) Yangilik bo'lsa — manba havolalari
+    if post and post.get("source") == "yangilik":
+        havolalar = []
+        for h in (post.get("manbalar") or [])[:3]:
+            url = (h.get("link") or "").strip()
+            nom = (h.get("source") or "").strip() or "Manba"
+            if url.startswith("http") and url not in [x[1] for x in havolalar]:
+                havolalar.append((nom, url))
+        if havolalar and "Manba:" not in text:
+            qator = " · ".join(
+                f'<a href="{html.escape(u, quote=True)}">{html.escape(n)}</a>'
+                for n, u in havolalar)
+            text += f"\n\n🔗 <b>Manba:</b> {qator}"
+
+    # 2) Kanal imzosi — hamma postda
+    if kanal and kanal not in text:
+        text += f"\n\n👉 {kanal}"
+    return text
+
+
 def tg_send_post(chat, post):
     """Rasm + matn + audio yuboradi. Matn caption limitidan uzun bo'lsa —
     rasm alohida, matn alohida xabar sifatida ketadi."""
-    text = _qisqa_naqsh(post["text"])
+    text = imzo_qosh(_qisqa_naqsh(post["text"]), post)
     img = post.get("image_path")
     has_img = bool(img) and Path(img).exists()
 
@@ -2372,6 +2453,7 @@ def build_post(avoid, label="", src=None):
     post["source"] = src
     post["rasm_kerak"] = True
     if src == "yangilik":
+        post["manbalar"] = topic.get("manbalar") or []
         post["card_title"] = (strip_tags(post["title"]).strip()
                               if _ha("rasm_sarlavha", "yo'q") else "")
         post["badge"] = sozlama("yangilik_hashtag", "#yangilik")
