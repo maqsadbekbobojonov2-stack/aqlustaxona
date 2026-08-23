@@ -47,6 +47,8 @@ jobs:
           GITHUB_REPOSITORY:   ${{ github.repository }}
           ELEVENLABS_API_KEY:  ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TIMEZONE:            "Asia/Tashkent"
           ERTALAB_VAQT:        ${{ vars.ERTALAB_VAQT || '08:45' }}
           KECHQURUN_VAQT:      ${{ vars.KECHQURUN_VAQT || '19:45' }}
