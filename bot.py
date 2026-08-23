@@ -1411,8 +1411,13 @@ def bepul_rasm(prompt, out_path):
                        + "\n- ".join(sabablar))
 
 
+_RASM_YOQ = [False]
+
+
 def gem_image(prompt, out_path):
     """Rasm generatsiya qiladi. Bir necha model va sozlamani sinab ko'radi."""
+    if _RASM_YOQ[0]:
+        raise RuntimeError("Gemini rasm bu hisobda mavjud emas (limit: 0)")
     out_path = Path(out_path)
     models = [GEMINI_IMAGE_MODEL] + [m for m in IMAGE_MODEL_FALLBACKS
                                      if m != GEMINI_IMAGE_MODEL]
@@ -1813,7 +1818,14 @@ Follow the style rules above exactly. No written words or letters."""
               f"{p.stat().st_size // 1024} KB")
         return p
     except Exception as e:
-        print(f"[3-agent] Gemini rasm chizmadi: {str(e)[:300]}")
+        xato = str(e)
+        print(f"[3-agent] Gemini rasm chizmadi: {xato[:300]}")
+        # "limit: 0" — bu hisobda rasm umuman berilmagan. Keyingi
+        # postlarda bekorga urinib, 40 soniya yo'qotmaymiz.
+        if "limit: 0" in xato and not _RASM_YOQ[0]:
+            _RASM_YOQ[0] = True
+            print("[3-agent] Gemini rasm o'chirildi — to'g'ridan-to'g'ri "
+                  "bepul zaxira ishlatiladi")
     # Nano banana pullik bo'lgani uchun ishlamasa — bepul zaxira
     try:
         p = bepul_rasm(prompt, BUILD / "post.png")
