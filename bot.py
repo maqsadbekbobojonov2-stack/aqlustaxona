@@ -2498,11 +2498,15 @@ _BOSHQA_NAQSH = re.compile(
     r"\b(boshqa|qayta|almashtir|yoqmadi|yangisi|boshqasi|redo)\b", re.I)
 
 
-def yangilik_javobi(offset, deadline_ts):
+def yangilik_javobi(offset, deadline_ts, boshlandi=None):
     """Yangilik taklifiga javob kutadi: tugma ham, oddiy gap ham.
+
+    boshlandi — taklif yuborilgan vaqt. Undan OLDIN yozilgan xabarlar
+    javob deb hisoblanmaydi (eski gap yangi savolga javob bo'lolmaydi).
 
     Qaytaradi: ("pub" | "redo" | "skip" | "kutildi", offset)
     """
+    boshlandi = boshlandi or time.time()
     while True:
         left = deadline_ts - time.time()
         if left <= 0:
@@ -2535,6 +2539,10 @@ def yangilik_javobi(offset, deadline_ts):
                 continue
             msg = u.get("message") or {}
             if str((msg.get("from") or {}).get("id")) != str(TELEGRAM_ADMIN_ID):
+                continue
+            # Taklifdan oldin yozilgan gap javob emas
+            if (msg.get("date") or 0) < boshlandi - 5:
+                log("[yangilik] eski xabar e'tiborga olinmadi")
                 continue
             matn = (msg.get("text") or "").strip()
             if not matn:
@@ -2685,8 +2693,11 @@ def run(force_now=False, preview_only=False):
     round_no, deadline = 1, publish_at
     darhol = False
     while True:
+        offset = tg_drain()          # eski xabarlar javob deb o'qilmasin
+        yuborildi = time.time()
         ctrl_id = send_preview(post, deadline, round_no)
-        javob, offset = yangilik_javobi(offset, deadline.timestamp())
+        javob, offset = yangilik_javobi(offset, deadline.timestamp(),
+                                        boshlandi=yuborildi)
         try:
             tg_clear_markup(TELEGRAM_ADMIN_ID, ctrl_id)
         except Exception:
