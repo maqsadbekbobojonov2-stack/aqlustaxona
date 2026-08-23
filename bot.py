@@ -1363,12 +1363,42 @@ CF_ACCOUNT = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
 CF_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN", "").strip()
 
 
+# Flux (Cloudflare/Pollinations) uzun ko'rsatma-matnni tushunmaydi —
+# unga QISQA, zich, tasviriy jumla kerak. Gemini uchun yozilgan uzun
+# IMAGE_STYLE'ni o'sha ko'yi yuborsak, rasm tushunarsiz chiqadi.
+# Shuning uchun bepul xizmatlarga alohida qisqa prompt yasaymiz.
+FLUX_USLUB = (
+    "3D render illustration, soft clay and glossy plastic material, "
+    "rounded polished shapes, warm terracotta coral accent color, "
+    "cream white and light sand palette, softly blurred bright desk "
+    "background, natural window light, shallow depth of field, soft "
+    "realistic shadows, subtle rim light, highly detailed, premium "
+    "editorial 3D illustration, clean minimal composition, single clear "
+    "focal point, 16:9 wide")
+
+FLUX_TAQIQ = ("no text, no words, no letters, no numbers, no logo, "
+              "no watermark, no human face, no robot, no circuit board, "
+              "not a stock photo, not cluttered")
+
+
+def flux_prompt(gap):
+    """Uzun ko'rsatmani Flux tushunadigan qisqa tasvirga aylantiradi."""
+    gap = (gap or "").strip()
+    # Agar uzun ko'rsatma kelib qolsa — faqat sahna tavsifini ajratamiz.
+    m = re.search(r"The scene to build:\s*(.+?)(?:\n\s*\n|$)", gap, re.S)
+    if m:
+        gap = m.group(1)
+    gap = re.sub(r"\s+", " ", gap).strip()[:600]
+    return f"{gap}. {FLUX_USLUB}. {FLUX_TAQIQ}"
+
+
 def _pollinations(prompt, out_path):
     """Pollinations — mutlaqo bepul, kalit ham, ro'yxatdan o'tish ham
     kerak emas. Ichida Flux modeli ishlaydi."""
     from urllib.parse import quote
+    p = flux_prompt(prompt)
     url = ("https://image.pollinations.ai/prompt/"
-           + quote(prompt[:1500], safe="")
+           + quote(p, safe="")
            + "?width=1280&height=720&nologo=true&model=flux&enhance=true")
     r = requests.get(url, timeout=180)
     if r.status_code != 200 or len(r.content) < 5000:
@@ -1383,18 +1413,26 @@ def _cloudflare(prompt, out_path):
     CLOUDFLARE_ACCOUNT_ID va CLOUDFLARE_API_TOKEN kerak."""
     if not (CF_ACCOUNT and CF_TOKEN):
         raise RuntimeError("Cloudflare kaliti yo'q")
-    r = requests.post(
-        f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT}"
-        f"/ai/run/@cf/black-forest-labs/flux-1-schnell",
-        headers={"Authorization": f"Bearer {CF_TOKEN}"},
-        json={"prompt": prompt[:2000], "steps": 6}, timeout=180)
-    if r.status_code != 200:
-        raise RuntimeError(f"Cloudflare HTTP {r.status_code}: {r.text[:200]}")
-    b64 = (r.json().get("result") or {}).get("image", "")
-    if not b64:
-        raise RuntimeError("Cloudflare rasm qaytarmadi")
-    Path(out_path).write_bytes(base64.b64decode(b64))
-    return Path(out_path)
+    p = flux_prompt(prompt)
+    oxirgi = ""
+    # steps=8 — flux-1-schnell uchun eng yuqori sifat.
+    for tana in ({"prompt": p[:2000], "steps": 8},
+                 {"prompt": p[:2000], "steps": 4}):
+        r = requests.post(
+            f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT}"
+            f"/ai/run/@cf/black-forest-labs/flux-1-schnell",
+            headers={"Authorization": f"Bearer {CF_TOKEN}"},
+            json=tana, timeout=180)
+        if r.status_code != 200:
+            oxirgi = f"Cloudflare HTTP {r.status_code}: {r.text[:200]}"
+            continue
+        b64 = (r.json().get("result") or {}).get("image", "")
+        if not b64:
+            oxirgi = "Cloudflare rasm qaytarmadi"
+            continue
+        Path(out_path).write_bytes(base64.b64decode(b64))
+        return Path(out_path)
+    raise RuntimeError(oxirgi or "Cloudflare noma'lum xato")
 
 
 def bepul_rasm(prompt, out_path):
