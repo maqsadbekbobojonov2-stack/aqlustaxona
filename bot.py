@@ -1160,6 +1160,7 @@ _JSON_YOQ = set()
 
 def gem_post(model, body):
     last = None
+    aylanish = [0]
     # Har bir kalitga kamida bittadan imkon beramiz
     for a in range(max(4, len(GEMINI_KEYS) + 2)):
         try:
@@ -1167,9 +1168,17 @@ def gem_post(model, body):
                               params={"key": gem_key()}, json=body, timeout=240)
             if r.status_code == 200:
                 return r.json()
-            # Kvota yoki kalit muammosi — zaxira kalitga o'tamiz
+            # Kvota yoki kalit muammosi — zaxira kalitga o'tamiz.
+            # Barcha kalitlar bir marta sinalgach — biroz kutamiz,
+            # chunki kalitlarni tez-tez almashtirish kvotani tiklamaydi.
             if r.status_code in (429, 403) and gem_rotate_key():
                 last = f"HTTP {r.status_code} (kalit almashtirildi)"
+                aylanish[0] += 1
+                if aylanish[0] % max(1, len(GEMINI_KEYS)) == 0:
+                    kut = 8 * (aylanish[0] // max(1, len(GEMINI_KEYS)))
+                    print(f"[gemini] barcha kalitlarda kvota tugagan — "
+                          f"{kut} soniya kutilmoqda")
+                    time.sleep(min(kut, 30))
                 continue
             if r.status_code in (429, 500, 502, 503, 504):
                 last = f"HTTP {r.status_code}"
