@@ -138,7 +138,7 @@ ELEVENLABS_MODEL = os.getenv("ELEVENLABS_MODEL", "").strip() or "eleven_v3"
 PUBLISH_TIME = os.getenv("PUBLISH_TIME", "").strip() or "19:45"
 PREVIEW_LEAD = _int("PREVIEW_LEAD_MINUTES", 10)
 TZ = ZoneInfo(os.getenv("TIMEZONE", "").strip() or "Asia/Tashkent")
-RUBRIC = os.getenv("RUBRIC", "").strip() or "Claude maslahatlar"
+RUBRIC = os.getenv("RUBRIC", "").strip() or "Startap yangiliklari"
 
 # ── Kontent jadvali ──────────────────────────────────────────────
 # SLOT:
@@ -846,29 +846,153 @@ Post telefonda o'qiladi. Devor bo'lib turgan matnni hech kim o'qimaydi.
 """
 
 
+# Haqiqiy yangilik manbalari. Model o'zidan to'qib chiqarmasligi uchun
+# avval shu tasmalardan chinakam xabarlar olinadi, keyin model faqat
+# shulardan tanlaydi va o'zbekchada tushuntiradi.
+RSS_MANBALAR = [
+    # O'zbekiston
+    "https://www.spot.uz/uz/rss/",
+    "https://www.gazeta.uz/uz/rss/",
+    "https://kun.uz/uz/news/rss",
+    # Jahon — startap va texnologiya
+    "https://techcrunch.com/feed/",
+    "https://news.ycombinator.com/rss",
+    "https://www.theverge.com/rss/index.xml",
+    # Google News qidiruvlari
+    "https://news.google.com/rss/search?q=startup+funding+when:7d&hl=en&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=O%CA%BBzbekiston+startap+when:7d&hl=uz&gl=UZ&ceid=UZ:uz",
+    "https://news.google.com/rss/search?q=IT+Park+Uzbekistan+when:7d&hl=uz&gl=UZ&ceid=UZ:uz",
+    "https://news.google.com/rss/search?q=AI+tools+for+small+business+when:7d&hl=en&gl=US&ceid=US:en",
+]
+
+
+def _rss_oqi(url, cheklov=8):
+    """Bitta RSS tasmasidan so'nggi xabarlarni oladi."""
+    import xml.etree.ElementTree as ET
+    r = requests.get(url, timeout=25,
+                     headers={"User-Agent": "Mozilla/5.0 (compatible; AqlUstaxonaBot)"})
+    if r.status_code != 200:
+        raise RuntimeError(f"HTTP {r.status_code}")
+    root = ET.fromstring(r.content)
+    chiq = []
+    # RSS (item) va Atom (entry) — ikkalasini ham qo'llab-quvvatlaymiz
+    tugunlar = root.findall(".//item") or root.findall(
+        ".//{http://www.w3.org/2005/Atom}entry")
+    for it in tugunlar[:cheklov]:
+        def olish(*nomlar):
+            for n in nomlar:
+                v = it.findtext(n)
+                if v:
+                    return v.strip()
+                el = it.find("{http://www.w3.org/2005/Atom}" + n)
+                if el is not None:
+                    return (el.get("href") or el.text or "").strip()
+            return ""
+        sarlavha = olish("title")
+        if not sarlavha:
+            continue
+        manba = ""
+        s = it.find("source")
+        if s is not None and s.text:
+            manba = s.text.strip()
+        chiq.append({
+            "title": re.sub(r"\s+", " ", sarlavha)[:200],
+            "date": olish("pubDate", "updated", "published")[:25],
+            "source": manba,
+            "link": olish("link")[:300],
+        })
+    return chiq
+
+
+def yangilik_manbalar(cheklov=45):
+    """Barcha tasmalardan haqiqiy xabarlarni yig'adi."""
+    yigilgan, korilgan = [], set()
+    for url in RSS_MANBALAR:
+        try:
+            for x in _rss_oqi(url):
+                kalit = x["title"].lower()[:80]
+                if kalit in korilgan:
+                    continue
+                korilgan.add(kalit)
+                yigilgan.append(x)
+        except Exception as e:
+            log(f"[rss] {url.split('/')[2]}: {str(e)[:90]}")
+    log(f"[rss] jami {len(yigilgan)} ta haqiqiy xabar yig'ildi")
+    return yigilgan[:cheklov]
+
+
 def topic_yangilik(avoid, hammasi=False):
-    """Google qidiruvi orqali so'nggi haftaning yangiligini topadi.
+    """Haqiqiy yangilik tasmalaridan mavzu tanlaydi.
 
     hammasi=True bo'lsa — bitta emas, butun ro'yxatni qaytaradi
     (haftalik taklif uchun kerak).
     """
     used = "\n".join(f"- {t}" for t in (hist_topics(30) + avoid)) or "(bo'sh)"
     bugun = now().strftime("%Y-%m-%d")
-    prompt = f"""Sen startap va texnologiya yangiliklari muharririsan.
+
+    xabarlar = []
+    try:
+        xabarlar = yangilik_manbalar()
+    except Exception as e:
+        log(f"[rss] umuman ishlamadi: {e}")
+
+    if xabarlar:
+        royxat = "\n".join(
+            f"{i}. {x['title']}"
+            + (f" | manba: {x['source']}" if x.get("source") else "")
+            + (f" | sana: {x['date']}" if x.get("date") else "")
+            + (f" | {x['link']}" if x.get("link") else "")
+            for i, x in enumerate(xabarlar, 1))
+        prompt = f"""Sen startap yangiliklari muharririsan. Bugungi sana: {bugun}.
+
+Quyida internetdagi haqiqiy yangilik tasmalaridan olingan xabarlar
+ro'yxati bor. Faqat SHU RO'YXATDAN tanla — o'zingdan hech narsa
+qo'shma va to'qima.
+
+XABARLAR:
+{royxat}
+
+VAZIFA: shulardan O'zbekistonlik boshlovchi tadbirkorga eng foydali
+5 tasini tanla va har birini o'zbekchada tushuntir.
+
+TANLASH MEZONI:
+- Tadbirkorga amaliy foydasi bor (yangi imkoniyat, vosita, pul, qonun,
+  bozor o'zgarishi)
+- Siyosat, urush, mojaro, jinoyat, sport, mashhurlar — TANLAMA
+- Bir xil mavzudagi ikkita xabarni tanlama
+- Quyidagilar allaqachon chiqqan, ularni BERMA:
+{used}
+
+HAR BIR TANLOV UCHUN:
+- topic: o'zbekcha sarlavha, 4-9 so'z, aniq voqeani bildirsin
+  ("SI vositalari rivojlanmoqda" kabi umumiy gap EMAS)
+- why: bu tadbirkorga aniq nima beradi, 1 gap
+- key_facts: ro'yxatdagi xabardan olingan 2-3 ta ANIQ fakt.
+  Har birida manba nomi bo'lsin. Raqam bo'lsa — raqamni yoz.
+
+Javobni FAQAT shu JSON ko'rinishida ber:
+{{"topics": [{{"topic": "...", "why": "...",
+ "key_facts": ["fakt (manba)", "fakt 2", "fakt 3"]}}]}}"""
+        data = gem_json(prompt, search=False, temperature=0.6)
+    else:
+        # Tasmalar ishlamasa — qidiruv bilan urinamiz (eski yo'l)
+        log("[yangilik] tasmalar bo'sh — qidiruvga o'tilmoqda")
+        prompt = f"""Sen startap va texnologiya yangiliklari muharririsan.
 Bugungi sana: {bugun}.
 
 Google qidiruvidan foydalanib, SO'NGGI 7 KUN ichida yuz bergan va
 O'zbekistonlik boshlovchi tadbirkorga foydali bo'ladigan 5 ta yangilik top.
 
-Mavzular: sun'iy intellekt vositalari, yangi mahsulot va imkoniyatlar,
-startap sarmoyalari, O'zbekistondagi biznes va IT yangiliklari, jahon
-bozoridagi muhim o'zgarishlar, tadbirkorga tegishli qonun o'zgarishlari.
+Mavzular: startap sarmoyalari, yangi mahsulot va imkoniyatlar,
+sun'iy intellekt vositalari, O'zbekistondagi biznes va IT yangiliklari,
+jahon bozoridagi muhim o'zgarishlar, tadbirkorga tegishli qonun
+o'zgarishlari.
 
 QAT'IY TALABLAR:
 - Faqat HAQIQIY, tekshirilgan xabar. To'qima yoki taxmin YO'Q
+- Umumiy maslahat EMAS — aniq voqea bo'lsin (kim, nima, qachon)
 - Sana so'nggi 7 kun ichida bo'lsin
 - Har bir yangilikda manba nomi va sana bo'lsin
-- Har bir yangilik uchun "bu tadbirkorga nima beradi" degan javob bo'lsin
 - Siyosat, urush, mojaro mavzulari YO'Q
 - Quyidagilar allaqachon chiqqan, ularni BERMA:
 {used}
@@ -877,7 +1001,7 @@ Javobni FAQAT shu JSON ko'rinishida ber:
 {{"topics": [{{"topic": "yangilik sarlavhasi o'zbekcha 4-9 so'z",
  "why": "tadbirkorga nima beradi, 1 gap",
  "key_facts": ["fakt (manba, sana)", "fakt 2", "fakt 3"]}}]}}"""
-    data = gem_json(prompt, search=True, temperature=0.9)
+        data = gem_json(prompt, search=True, temperature=0.9)
     topics = data.get("topics") if isinstance(data, dict) else data
     if not topics:
         raise RuntimeError("Yangilik topilmadi")
