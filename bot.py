@@ -183,6 +183,8 @@ SOZLAMA_KALITLAR = {
     "kechqurun_vaqt":   "Kechqurungi post vaqti, masalan 19:45",
     "kurs_hashtag":     "Kurs postidagi hashtag, masalan #startap_kursi",
     "yangilik_hashtag": "Yangilik postidagi hashtag, masalan #yangilik",
+    "post_hashtag":     "Hamma post turida (hikoya/kurs/yangilik) bir xil "
+                        "chiqadigan hashtag qatori, masalan #startap #biznes",
     "kanal_nomi":       "Rasm pastida turadigan yozuv",
     "rasm_qoshimcha":   "Rasm chizilishiga qo'shimcha ko'rsatma",
     "matn_qoshimcha":   "Post matni yozilishiga qo'shimcha ko'rsatma",
@@ -2045,7 +2047,12 @@ def imzo_qosh(text, post=None):
                 for n, u in havolalar)
             text += f"\n\n🔗 <b>Manba:</b> {qator}"
 
-    # 2) Kanal imzosi — hamma postda
+    # 2) Hashtag — turidan qat'i nazar hamma postda bir xil qator
+    heshteg = sozlama("post_hashtag", "#startap #biznes #tadbirkorlik").strip()
+    if heshteg and heshteg not in text:
+        text += f"\n\n{heshteg}"
+
+    # 3) Kanal imzosi — hamma postda
     if kanal and kanal not in text:
         text += f"\n\n👉 {kanal}"
     return text
