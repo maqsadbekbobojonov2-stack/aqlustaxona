@@ -1,41 +1,42 @@
 {
   "sana": "2026-08-26",
   "holat": "Kanal a'zolari: 22 ta\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni sekin o'sib bormoqda, shuning uchun faollashtirish choralarini ko'rish kerak. O'zbekistonda startap va texnologiya sohasida qiziqish yuqori.",
+  "tahlil": "Kanal a'zolari soni 22 ta, o'sish sekin. Shu sababdan, faollashtirish va auditoriya jalb qilish uchun takliflar beriladi.",
   "takliflar": [
     {
-      "nom": "Startap g'oyalari",
-      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, shuning uchun startap g'oyalari haqida so'rovnoma chiqarish kerak.",
+      "nom": "Startap bosqichi so'rovnomasi",
+      "sabab": "Kanal a'zolari soni 22 ta, o'sish sekin. So'rovnoma orqali a'zolarni faollashtirish va kelgusi postlarni ularning manfaatlariga moslashtirish mumkin.",
       "amal": "sorovnoma",
       "matn": "",
-      "savol": "Sizning startap g'oyangiz nima?",
+      "savol": "Startapingiz hozir qaysi bosqichda?",
       "variantlar": [
-        "Texnologiya",
-        "E-commerce",
-        "Ta'lim",
-        "Sog'liqni saqlash"
+        "Hali faqat g'oya",
+        "MVP qilyapman",
+        "Birinchi mijoz bor",
+        "Sotuv bor, o'smoqchiman",
+        "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Kanal a'zolari faollashadi",
+      "kutilgan": "A'zolar faollashadi va kelgusi postlarni ko'rib, kanaldan foyda oladi.",
       "bajarildi": false
     },
     {
-      "nom": "Qo'shimcha post",
-      "sabab": "Kanalda qo'shimcha post chiqarish orqali auditoriya jalb qilish mumkin.",
+      "nom": "Texnologiya yangiliklari",
+      "sabab": "O'zbekistonda texnologiya sohasi qizib turibdi. Kanalga texnologiya yangiliklari posti chiqarish orqali yangi a'zolarni jalb qilish mumkin.",
       "amal": "post",
-      "matn": "Startap g'oyalarini ishlab chiqish uchun 5 ta savol: <b>1. Nima uchun?</b>, <b>2. Kim uchun?</b>, <b>3. Qanday?</b>, <b>4. Qachon?</b>, <b>5. Qancha?</b>",
+      "matn": "O'zbekistonda sun'iy intellekt vositalari rivojlanishi haqida yangi ma'lumotlar paydo bo'ldi. Buni o'rganish va startapga qanday qo'llash mumkin?",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Kanal a'zolari soni o'sadi",
+      "kutilgan": "Kanal obunachilari soni ortadi va yangi a'zolar keladi.",
       "bajarildi": false
     },
     {
-      "nom": "Muhim xabar",
-      "sabab": "O'zbekiston Markaziy banki raqamli valyuta va steyblcoinlarni o'rganmoqda, shuning uchun muhim xabarni kanal tepasiga qadab qo'yish kerak.",
-      "amal": "pin",
-      "matn": "O'zbekiston Markaziy banki raqamli valyuta va steyblcoinlarni o'rganmoqda. Buni bilish kerak!",
+      "nom": "Startap g'oyalari ro'yxati",
+      "sabab": "Startap g'oyalari qizib turibdi. Kanalga startap g'oyalari ro'yxati posti chiqarish orqali a'zolarni jalb qilish va faollashtirish mumkin.",
+      "amal": "post",
+      "matn": "Startap g'oyalari ro'yxati: 1) Sun'iy intellekt, 2) Bulut hisoblash, 3) Kibersport. Qaysi g'oya sizga qiziqarli?",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Kanal a'zolari xabardor bo'ladilar",
+      "kutilgan": "A'zolar faollashadi va kanaldan foyda oladi.",
       "bajarildi": false
     }
   ]
