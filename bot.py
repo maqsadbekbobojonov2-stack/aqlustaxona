@@ -2647,8 +2647,16 @@ def run(force_now=False, preview_only=False):
     t = now()
     publish_at = t.replace(hour=hh, minute=mm, second=0, microsecond=0)
     if publish_at < t:
-        publish_at = t + timedelta(minutes=PREVIEW_LEAD)
-        log(f"[jadval] {PUBLISH_TIME} o'tib ketgan — yangi vaqt {publish_at:%H:%M}")
+        # GitHub cron kechikkanda shu yerga tushamiz. Yangilikka (preview
+        # va tugmalar kerak) biroz vaqt beramiz, lekin hikoya/kursni yana
+        # PREVIEW_LEAD daqiqa kechiktirmaymiz — ular darhol, aynan hozir
+        # chiqadi, aks holda jadval vaqtidan yanada uzoqlashib ketardi.
+        if src in PREVIEW_TURLARI:
+            publish_at = t + timedelta(minutes=PREVIEW_LEAD)
+            log(f"[jadval] {PUBLISH_TIME} o'tib ketgan — yangi vaqt {publish_at:%H:%M}")
+        else:
+            publish_at = t
+            log(f"[jadval] {PUBLISH_TIME} o'tib ketgan (jadval kechikdi) — darhol chiqariladi")
     if force_now:
         # Preview kerak bo'lmagan turlar darhol chiqadi, kutmaydi
         publish_at = (now() if src not in PREVIEW_TURLARI
