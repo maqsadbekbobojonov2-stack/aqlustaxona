@@ -1374,16 +1374,40 @@ def gh_oqi(yol):
     return base64.b64decode(j.get("content", "")).decode("utf-8", "replace"), j.get("sha")
 
 
-def gh_yoz(yol, matn, izoh):
-    """Repodagi faylni yozadi/yangilaydi. Commit havolasini qaytaradi."""
+def gh_oqi_bytes(yol):
+    """gh_oqi kabi, lekin utf-8ga o'girmasdan xom bytes qaytaradi —
+    PDF kabi binary fayllar uchun. Qaytaradi (bytes, sha) yoki (None, None)."""
+    r = requests.get(f"{GH_API}/repos/{GITHUB_REPO}/contents/{yol}",
+                     headers=_gh_sarlavha(), params={"ref": GITHUB_BRANCH},
+                     timeout=60)
+    if r.status_code == 404:
+        return None, None
+    if r.status_code != 200:
+        raise RuntimeError(f"GitHub o'qish xatosi {r.status_code}: {r.text[:200]}")
+    j = r.json()
+    return base64.b64decode(j.get("content", "")), j.get("sha")
+
+
+def gh_yoz(yol, matn, izoh, sha="__oqi__"):
+    """Repodagi faylni yozadi/yangilaydi. Commit havolasini qaytaradi.
+
+    `matn` matn (str, utf-8 sifatida) yoki bytes (masalan PDF) bo'lishi
+    mumkin. `sha` berilmasa — GitHub'dan hozirgi holatni o'zi so'raydi
+    (eski xulq-atvor). Aniq sha berilsa — ANIQ O'SHA sha bilan yozishga
+    urinadi: agar orada fayl boshqa jarayon tomonidan o'zgartirilgan
+    bo'lsa, GitHub 409/422 bilan rad etadi — shu orqali "band qilish"
+    (optimistic lock) qilish mumkin."""
     if not gh_bor():
         raise RuntimeError("GitHub ulanmagan (GITHUB_TOKEN yo'q)")
     if yol.startswith(".github/workflows/"):
         # Actions tokeni workflow fayllarini o'zgartira olmaydi.
         raise RuntimeError("Workflow fayllarini bot o'zgartira olmaydi")
-    _, sha = gh_oqi(yol)
-    body = {"message": izoh, "branch": GITHUB_BRANCH,
-            "content": base64.b64encode(matn.encode("utf-8")).decode("ascii")}
+    if sha == "__oqi__":
+        _, sha = gh_oqi(yol)
+    b64 = base64.b64encode(
+        matn if isinstance(matn, (bytes, bytearray)) else matn.encode("utf-8")
+    ).decode("ascii")
+    body = {"message": izoh, "branch": GITHUB_BRANCH, "content": b64}
     if sha:
         body["sha"] = sha
     r = requests.put(f"{GH_API}/repos/{GITHUB_REPO}/contents/{yol}",
@@ -2061,59 +2085,124 @@ def imzo_qosh(text, post=None):
 
 def maxsus_postlarni_tekshir():
     """maxsus_postlar.json ichidagi oldindan tayyorlangan fayllarni
-    (masalan bepul qo'llanmalar) belgilangan sanasida kanalga bir marta,
-    chiroyli caption bilan chiqaradi. Har bot.py ishga tushganda
-    (kunlik jadval, qo'lda ishga tushirish, doctor va h.k.) chaqiriladi —
-    shuning uchun oddiy kunlik cronni ham ishlatib, alohida vaqt
-    belgilashning hojati yo'q."""
-    if not MAXSUS_POST_FAYL.exists():
-        return
+    (bepul qo'llanmalar, admin yuborgan fayllar) o'z sanasi/vaqtida
+    kanalga bir marta chiqaradi.
+
+    Bir vaqtning o'zida ikkita jarayon (masalan kunlik post workflow'i
+    va uzoq ishlaydigan --listen jarayoni) ishlab qolishi mumkinligi
+    uchun — bu funksiya GitHub'dan HAR SAFAR yangi holatni o'qiydi va
+    yuborishdan OLDIN "yuborilgan: true" deb ANIQ o'sha sha bilan
+    GitHub'ga yozishga urinadi (band qilish). Agar orada boshqa jarayon
+    faylni allaqachon o'zgartirib ulgurgan bo'lsa, GitHub yozishni rad
+    etadi va biz HECH NARSA yubormaymiz — shu tarzda bitta post ikki
+    marta kanalga chiqib ketmaydi (buni bir marta boshdan kechirdik).
+    Bir chaqiriqda faqat BITTA yozuv qayta ishlanadi — qolganlari
+    keyingi tekshiruvda, yangilangan holatdan davom etadi."""
+    gh = gh_bor()
+    sha = None
+    if gh:
+        try:
+            matn, sha = gh_oqi("maxsus_postlar.json")
+        except Exception as e:
+            log(f"[maxsus] GitHub'dan o'qishda xato: {e}")
+            return
+        if matn is None:
+            return
+    else:
+        if not MAXSUS_POST_FAYL.exists():
+            return
+        matn = MAXSUS_POST_FAYL.read_text(encoding="utf-8")
+
     try:
-        royxat = json.loads(MAXSUS_POST_FAYL.read_text(encoding="utf-8"))
+        royxat = json.loads(matn)
     except Exception as e:
         log(f"[maxsus] o'qishda xato: {e}")
         return
     if not isinstance(royxat, list):
         return
 
-    bugun = now().strftime("%Y-%m-%d")
-    ozgardi = False
-    for item in royxat:
+    hozir = now()
+    bugun = hozir.strftime("%Y-%m-%d")
+    hh_mm = hozir.strftime("%H:%M")
+
+    nomzod_idx = None
+    for i, item in enumerate(royxat):
         if not isinstance(item, dict) or item.get("yuborilgan"):
             continue
-        if item.get("sana", "9999-99-99") > bugun:
+        sana = item.get("sana") or "9999-99-99"
+        if sana > bugun:
             continue
-        yol = ROOT / item.get("fayl", "")
-        if not yol.exists():
-            log(f"[maxsus] fayl topilmadi: {yol}")
-            continue
-        try:
-            matn = imzo_qosh(item.get("caption", ""))
-            if len(matn) > CAPTION_LIMIT:
-                matn = matn[:CAPTION_LIMIT]
-            with open(yol, "rb") as f:
-                tg_call("sendDocument",
-                        data={"chat_id": TELEGRAM_CHANNEL, "parse_mode": "HTML",
-                              "caption": matn},
-                        files={"document": f}, timeout=180)
-            item["yuborilgan"] = True
-            ozgardi = True
-            log(f"[maxsus] kanalga yuborildi: {item.get('fayl')}")
-            try:
-                tg_msg(TELEGRAM_ADMIN_ID,
-                       f"✅ <b>Maxsus post kanalga chiqdi</b>\n\n📄 {item.get('fayl')}\n"
-                       f"📢 {sozlama('kanal_nomi', TELEGRAM_CHANNEL)}")
-            except Exception as e:
-                log(f"[maxsus] admin xabari yuborilmadi: {e}")
-        except Exception as e:
-            log(f"[maxsus] yuborishda xato ({item.get('fayl')}): {e}")
+        vaqt = (item.get("vaqt") or "").strip()
+        if sana == bugun and vaqt and vaqt > hh_mm:
+            continue  # bugun, lekin belgilangan vaqti hali kelmagan
+        nomzod_idx = i
+        break
+    if nomzod_idx is None:
+        return
 
-    if ozgardi:
+    item = royxat[nomzod_idx]
+    royxat[nomzod_idx] = dict(item, yuborilgan=True)
+
+    # ── Band qilishga urinamiz ────────────────────────────────────
+    try:
+        yangi_matn = json.dumps(royxat, ensure_ascii=False, indent=2)
+        if gh:
+            gh_yoz("maxsus_postlar.json", yangi_matn,
+                   f"maxsus: {item.get('fayl', '')} band qilindi", sha=sha)
+        else:
+            MAXSUS_POST_FAYL.write_text(yangi_matn, encoding="utf-8")
+    except Exception as e:
+        log(f"[maxsus] band qilib bo'lmadi — ehtimol boshqa jarayon "
+            f"ulgurgan: {e}")
+        return  # yubormaymiz — xavfsizroq tomoni
+
+    # ── Band qildik — endi xotirjam yuboramiz ───────────────────────
+    yol = ROOT / item.get("fayl", "")
+    if not yol.exists() and gh:
+        # Fayl GitHub'da bor, lekin bizning (ayniqsa uzoq ishlayotgan
+        # --listen jarayonining eski) lokal nusxamizda yo'q bo'lishi
+        # mumkin — GitHub'dan xom holda yuklab olamiz.
         try:
-            MAXSUS_POST_FAYL.write_text(
-                json.dumps(royxat, ensure_ascii=False, indent=2), encoding="utf-8")
+            xom, _ = gh_oqi_bytes(item.get("fayl", ""))
+            if xom:
+                yol.parent.mkdir(parents=True, exist_ok=True)
+                yol.write_bytes(xom)
         except Exception as e:
-            log(f"[maxsus] saqlashda xato: {e}")
+            log(f"[maxsus] faylni GitHub'dan yuklab bo'lmadi: {e}")
+
+    if not yol.exists():
+        log(f"[maxsus] fayl topilmadi: {yol}")
+        try:
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   f"❌ Maxsus post chiqmadi — fayl topilmadi: {item.get('fayl')}")
+        except Exception:
+            pass
+        return
+
+    try:
+        caption_matn = imzo_qosh(item.get("caption", ""))
+        if len(caption_matn) > CAPTION_LIMIT:
+            caption_matn = caption_matn[:CAPTION_LIMIT]
+        with open(yol, "rb") as f:
+            tg_call("sendDocument",
+                    data={"chat_id": TELEGRAM_CHANNEL, "parse_mode": "HTML",
+                          "caption": caption_matn},
+                    files={"document": f}, timeout=180)
+        log(f"[maxsus] kanalga yuborildi: {item.get('fayl')}")
+        try:
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   f"✅ <b>Maxsus post kanalga chiqdi</b>\n\n📄 {item.get('fayl')}\n"
+                   f"📢 {sozlama('kanal_nomi', TELEGRAM_CHANNEL)}")
+        except Exception as e:
+            log(f"[maxsus] admin xabari yuborilmadi: {e}")
+    except Exception as e:
+        log(f"[maxsus] yuborishda xato ({item.get('fayl')}): {e}")
+        try:
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   f"❌ Maxsus post chiqmadi: {item.get('fayl')}\n"
+                   f"<code>{str(e)[:300]}</code>")
+        except Exception:
+            pass
 
 
 def tg_send_post(chat, post):
@@ -2966,6 +3055,8 @@ AMALLAR = ("hikoya", "dars", "yangilik", "haftalik", "holat",
 # "o'shani qil" kabi kalta javoblar ham tushunarli bo'ladi.
 _TARIX = []            # [(kim, matn)] — oxirgi 10 ta
 _KUTILMOQDA = [None]   # {"amal", "raqam", "savol"} — so'ralgan aniqlik
+_KUT_FAYL = [None]     # admin fayl yubordi, vaqtini kutyapmiz: {"fayl", "asl_caption"}
+_MAXSUS_TEKSHIR_VAQT = [0.0]   # listen() ichida davriy tekshiruv — throttle
 
 
 def _tarix_qosh(kim, matn):
@@ -3677,6 +3768,137 @@ def mehmon_maslahat(uid, matn):
         return False
 
 
+# ── Admin fayl yuborsa — aniq vaqtda kanalga chiqarish ────────────
+_SANA_VAQT_RE = re.compile(
+    r"^\s*(?:(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?\s+)?(\d{1,2}):(\d{2})\s*\n?(.*)$",
+    re.DOTALL)
+
+
+def _sana_vaqt_ajrat(matn):
+    """Matn boshidan ixtiyoriy '[DD.MM[.YYYY]] HH:MM' ni ajratadi.
+    Qaytaradi (sana yoki None, vaqt yoki None, qolgan_matn)."""
+    m = _SANA_VAQT_RE.match((matn or "").strip())
+    if not m:
+        return None, None, (matn or "").strip()
+    kun, oy, yil, hh, mm, qolgan = m.groups()
+    try:
+        vaqt = f"{int(hh):02d}:{int(mm):02d}"
+    except ValueError:
+        return None, None, (matn or "").strip()
+    sana = None
+    if kun and oy:
+        try:
+            yil_i = int(yil) if yil else now().year
+            sana_dt = datetime(yil_i, int(oy), int(kun)).date()
+            if not yil and sana_dt < now().date():
+                sana_dt = datetime(yil_i + 1, int(oy), int(kun)).date()
+            sana = sana_dt.strftime("%Y-%m-%d")
+        except ValueError:
+            sana = None
+    return sana, vaqt, (qolgan or "").strip()
+
+
+def _maxsus_royxatga_qosh(fayl, sana, vaqt, caption):
+    """Yangi maxsus post yozuvini maxsus_postlar.json'ga qo'shadi."""
+    try:
+        if gh_bor():
+            matn, sha = gh_oqi("maxsus_postlar.json")
+            royxat = json.loads(matn) if matn else []
+        else:
+            royxat = (json.loads(MAXSUS_POST_FAYL.read_text(encoding="utf-8"))
+                      if MAXSUS_POST_FAYL.exists() else [])
+            sha = None
+        if not isinstance(royxat, list):
+            royxat = []
+        royxat.append({"fayl": fayl, "sana": sana, "vaqt": vaqt,
+                        "caption": caption, "yuborilgan": False})
+        yangi = json.dumps(royxat, ensure_ascii=False, indent=2)
+        if gh_bor():
+            gh_yoz("maxsus_postlar.json", yangi,
+                   f"maxsus: {fayl} — {sana} {vaqt}", sha=sha)
+        else:
+            MAXSUS_POST_FAYL.write_text(yangi, encoding="utf-8")
+        tg_msg(TELEGRAM_ADMIN_ID,
+               f"✅ <b>Jadvalga qo'shildi</b>\n\n📄 {fayl}\n"
+               f"🗓 {sana} · 🕐 {vaqt}\n\nMatn:\n{html.escape((caption or '')[:400])}")
+    except Exception as e:
+        tg_msg(TELEGRAM_ADMIN_ID,
+               f"❌ Jadvalga qo'sha olmadim: <code>{str(e)[:300]}</code>")
+
+
+def _fayl_jadval_yangila(fayl, sana, vaqt, caption):
+    """_KUT_FAYL holatini yangilaydi — sana/vaqt/matn to'liq bo'lguncha
+    admindan so'rab boradi, hammasi yig'ilgach jadvalga qo'shadi."""
+    kut = _KUT_FAYL[0] or {}
+    fayl = fayl or kut.get("fayl")
+    sana = sana or kut.get("sana")
+    vaqt = vaqt or kut.get("vaqt")
+    caption = caption or kut.get("caption") or ""
+
+    if not vaqt:
+        _KUT_FAYL[0] = {"fayl": fayl, "sana": sana, "vaqt": vaqt, "caption": caption}
+        tg_msg(TELEGRAM_ADMIN_ID,
+               "🕐 Qachon kanalga chiqsin? Vaqtni yozing, masalan:\n"
+               "<code>27.08 14:00</code>  yoki  faqat  <code>14:00</code> "
+               "(bugun/ertaga uchun)")
+        return
+    if not caption:
+        _KUT_FAYL[0] = {"fayl": fayl, "sana": sana, "vaqt": vaqt, "caption": ""}
+        tg_msg(TELEGRAM_ADMIN_ID,
+               "✍️ Endi post matnini (caption) yozing — shu matn fayl ostida, "
+               "kanal imzosi bilan birga chiqadi.")
+        return
+    if not sana:
+        sana = now().strftime("%Y-%m-%d")
+        if vaqt <= now().strftime("%H:%M"):
+            sana = (now() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    _KUT_FAYL[0] = None
+    _maxsus_royxatga_qosh(fayl, sana, vaqt, caption)
+
+
+def admin_fayl_qabul(msg):
+    """Admin botga fayl (masalan PDF) yuborsa — GitHub'ga yuklaydi,
+    keyin caption'dan sana/vaqtni ajratishga urinadi. Topilmasa —
+    so'raydi va javobni _KUT_FAYL orqali kutadi."""
+    doc = msg.get("document") or {}
+    file_id = doc.get("file_id")
+    if not file_id:
+        return
+    asl_nom = doc.get("file_name") or f"fayl_{int(time.time())}"
+    caption = (msg.get("caption") or "").strip()
+
+    try:
+        info = tg_call("getFile", data={"file_id": file_id}, timeout=60)
+        fp = info.get("file_path")
+        if not fp:
+            raise RuntimeError("file_path topilmadi")
+        r = requests.get(
+            f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{fp}",
+            timeout=120)
+        r.raise_for_status()
+        xom = r.content
+    except Exception as e:
+        tg_msg(TELEGRAM_ADMIN_ID, f"❌ Faylni yuklab bo'lmadi: <code>{str(e)[:200]}</code>")
+        return
+
+    xavfsiz = re.sub(r"[^A-Za-z0-9._-]", "_", asl_nom)[:80] or f"fayl_{int(time.time())}"
+    yol = f"resurslar/{xavfsiz}"
+    try:
+        if gh_bor():
+            gh_yoz(yol, xom, f"admin fayl: {xavfsiz}")
+        (ROOT / yol).parent.mkdir(parents=True, exist_ok=True)
+        (ROOT / yol).write_bytes(xom)
+    except Exception as e:
+        tg_msg(TELEGRAM_ADMIN_ID,
+               f"❌ GitHub'ga yuklab bo'lmadi: <code>{str(e)[:250]}</code>")
+        return
+
+    sana, vaqt, qolgan = _sana_vaqt_ajrat(caption)
+    _KUT_FAYL[0] = None
+    _fayl_jadval_yangila(yol, sana, vaqt, qolgan)
+
+
 def mehmon_ishla(msg):
     """Admin bo'lmagan odamdan kelgan xabar."""
     frm = msg.get("from") or {}
@@ -3825,8 +4047,30 @@ def listen(minutes=340):
                     except Exception as e:
                         log(f"[mehmon] xato: {e}")
                 continue
+            if msg.get("document"):
+                try:
+                    admin_fayl_qabul(msg)
+                except Exception as e:
+                    log(f"[maxsus] admin fayl xatosi: {e}")
+                continue
+            if _KUT_FAYL[0] is not None:
+                sana, vaqt, qolgan = _sana_vaqt_ajrat(msg.get("text", ""))
+                try:
+                    _fayl_jadval_yangila(None, sana, vaqt, qolgan)
+                except Exception as e:
+                    log(f"[maxsus] jadval yangilashda xato: {e}")
+                continue
             matnni_ishla(msg.get("text", ""))
         obuna_yoz()
+        # Aniq vaqtli maxsus postlarni davriy tekshiramiz (har ~60 soniyada
+        # bir marta) — shu tufayli admin belgilagan aniq vaqtda chiqadi,
+        # kunlik jadvalning 2 marta chiqishini kutish shart emas.
+        if time.time() - _MAXSUS_TEKSHIR_VAQT[0] >= 60:
+            _MAXSUS_TEKSHIR_VAQT[0] = time.time()
+            try:
+                maxsus_postlarni_tekshir()
+            except Exception as e:
+                log(f"[maxsus] listen ichida xato: {e}")
     obuna_yoz(majburiy=True)
     log("[listen] vaqt tugadi")
 
@@ -4140,11 +4384,6 @@ def main():
                     help="post turini majburan tanlash")
     args = ap.parse_args()
 
-    try:
-        maxsus_postlarni_tekshir()
-    except Exception as e:
-        log(f"[maxsus] umumiy xato: {e}")
-
     if args.tur:
         globals()["POST_SOURCE"] = args.tur
         log(f"[jadval] tur majburan tanlandi: {args.tur}")
@@ -4155,12 +4394,22 @@ def main():
         os.environ["FORCE_KURS"] = str(args.dars)
 
     if args.listen:
+        # DIQQAT: bu yerda maxsus_postlarni_tekshir() ATAYLAB chaqirilmaydi —
+        # listen() soatlab davom etadigan uzun jarayon, shuning uchun o'zi
+        # ICHIDA, davriy ravishda (aniq vaqtli postlar uchun) tekshiradi.
+        # Bu yerda ham chaqirilsa, kunlik post workflow'i bilan bir vaqtda
+        # ishga tushib, faylni IKKI MARTA kanalga yuborib yuborishi mumkin edi.
         try:
             listen(args.minutes)
             return 0
         except Exception as e:
             log(f"[FATAL] listen: {e}\n{traceback.format_exc()}")
             return 1
+
+    try:
+        maxsus_postlarni_tekshir()
+    except Exception as e:
+        log(f"[maxsus] umumiy xato: {e}")
 
     if args.weekly:
         try:
