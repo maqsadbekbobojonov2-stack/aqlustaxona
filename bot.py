@@ -155,6 +155,8 @@ STORIES_STATE = ROOT / "stories_state.json"
 STORIES_TOTAL = 365
 KURS_JSON = ROOT / "kurs.json"
 MAXSUS_POST_FAYL = ROOT / "maxsus_postlar.json"
+STATISTIKA_FAYL = ROOT / "statistika.json"
+TAKLIF_FAYL = ROOT / "takliflar.json"
 
 # Preview faqat yangilik uchun keladi — hikoya va kurs matni oldindan
 # tayyor va haftalik ko'rikdan o'tgan.
@@ -2205,6 +2207,391 @@ def maxsus_postlarni_tekshir():
             pass
 
 
+# ══════════════════════════════════════════════════════════════════
+#  O'SISH MASLAHATCHISI — statistika, tahlil, taklif va bajarish
+# ══════════════════════════════════════════════════════════════════
+# Har kuni kechqurungi post chiqqandan keyin bot:
+#   1) kanal statistikasini o'lchaydi va statistika.json ga yozib boradi
+#   2) o'sish tezligini o'zi tahlil qiladi (kecha/hafta/o'rtacha)
+#   3) jahon va O'zbekiston tendensiyalarini qidiradi (Google Search)
+#   4) shu asosda ANIQ, bajarilishi mumkin bo'lgan takliflar tayyorlaydi
+#   5) adminga tugmalar bilan yuboradi — admin "bajar" bossa, BOT O'ZI
+#      bajaradi (post, so'rovnoma, pin, jadval o'zgartirish)
+
+
+def _gh_json_oqi(yol, standart):
+    """JSON faylni GitHub'dan (bo'lmasa lokaldan) o'qiydi. (obj, sha)."""
+    if gh_bor():
+        try:
+            matn, sha = gh_oqi(yol)
+        except Exception as e:
+            log(f"[stat] {yol} o'qishda xato: {e}")
+            return standart, None
+        if matn is None:
+            return standart, None
+        try:
+            return json.loads(matn), sha
+        except Exception:
+            return standart, sha
+    p = ROOT / yol
+    if not p.exists():
+        return standart, None
+    try:
+        return json.loads(p.read_text(encoding="utf-8")), None
+    except Exception:
+        return standart, None
+
+
+def _gh_json_yoz(yol, obj, izoh, sha="__oqi__"):
+    matn = json.dumps(obj, ensure_ascii=False, indent=2)
+    (ROOT / yol).write_text(matn, encoding="utf-8")
+    if gh_bor():
+        gh_yoz(yol, matn, izoh, sha=sha)
+
+
+def kanal_azo_soni():
+    """Kanaldagi a'zolar soni. Olib bo'lmasa None."""
+    try:
+        r = tg_call("getChatMemberCount",
+                    data={"chat_id": TELEGRAM_CHANNEL}, timeout=30)
+        return int(r)
+    except Exception as e:
+        log(f"[stat] a'zo soni olinmadi: {e}")
+        return None
+
+
+def statistika_yangila():
+    """Bugungi o'lchovni statistika.json ga yozadi va butun tarixni
+    qaytaradi. Kuniga bir necha marta chaqirilsa — bugungi yozuv
+    yangilanadi, dublikat yaratilmaydi."""
+    tarix, sha = _gh_json_oqi("statistika.json", {"kunlar": []})
+    kunlar = tarix.get("kunlar") if isinstance(tarix, dict) else None
+    if not isinstance(kunlar, list):
+        kunlar = []
+    bugun = now().strftime("%Y-%m-%d")
+    azo = kanal_azo_soni()
+    bugungi_post = sum(1 for h in hist_load()
+                       if str(h.get("date", "")).startswith(bugun))
+    yozuv = {"sana": bugun, "azo": azo,
+             "bot_obuna": len(obunachilar()),
+             "post": bugungi_post}
+    for i, k in enumerate(kunlar):
+        if isinstance(k, dict) and k.get("sana") == bugun:
+            # a'zo soni olinmagan bo'lsa — eskisini yo'qotmaymiz
+            if azo is None:
+                yozuv["azo"] = k.get("azo")
+            kunlar[i] = yozuv
+            break
+    else:
+        kunlar.append(yozuv)
+    kunlar = kunlar[-120:]          # 4 oylik tarix yetarli
+    try:
+        _gh_json_yoz("statistika.json", {"kunlar": kunlar},
+                     f"stat: {bugun} — {azo if azo is not None else '?'} a'zo",
+                     sha=sha)
+    except Exception as e:
+        log(f"[stat] saqlanmadi: {e}")
+    return kunlar
+
+
+def statistika_tahlil(kunlar=None):
+    """Raqamlarni O'ZI tahlil qiladi — AI'siz, sof matematika.
+    Qaytaradi: {"matn": odam o'qiydigan xulosa, "azo", "kun", "hafta",
+                "ortacha", "eng_yaxshi", "eng_yomon"}"""
+    if kunlar is None:
+        kunlar, _ = _gh_json_oqi("statistika.json", {"kunlar": []})
+        kunlar = kunlar.get("kunlar", []) if isinstance(kunlar, dict) else []
+    q = [k for k in kunlar if isinstance(k, dict) and k.get("azo") is not None]
+    q.sort(key=lambda k: k.get("sana", ""))
+    if not q:
+        return {"matn": "Statistika hali yig'ilmagan — bu birinchi o'lchov.",
+                "azo": None, "kun": None, "hafta": None, "ortacha": None,
+                "eng_yaxshi": None, "eng_yomon": None}
+    oxirgi = q[-1]
+    azo = oxirgi.get("azo")
+    kun = hafta = ortacha = None
+    if len(q) >= 2:
+        kun = azo - q[-2].get("azo", azo)
+    if len(q) >= 3:
+        boshi = q[-8] if len(q) >= 8 else q[0]
+        kunlar_soni = max(1, len(q[q.index(boshi):]) - 1)
+        hafta = azo - boshi.get("azo", azo)
+        ortacha = round(hafta / kunlar_soni, 1)
+    # eng yaxshi / eng yomon kun (o'sish bo'yicha)
+    oz = []
+    for a, b in zip(q, q[1:]):
+        oz.append((b.get("sana"), b.get("azo", 0) - a.get("azo", 0)))
+    eng_yaxshi = max(oz, key=lambda x: x[1]) if oz else None
+    eng_yomon = min(oz, key=lambda x: x[1]) if oz else None
+
+    qatorlar = [f"Kanal a'zolari: {azo} ta"]
+    if kun is not None:
+        qatorlar.append(f"Kecha bilan farq: {kun:+d}")
+    if hafta is not None:
+        qatorlar.append(f"Oxirgi hafta: {hafta:+d} (kuniga o'rtacha {ortacha:+})")
+    if eng_yaxshi and eng_yaxshi[1] > 0:
+        qatorlar.append(f"Eng yaxshi kun: {eng_yaxshi[0]} ({eng_yaxshi[1]:+d})")
+    if eng_yomon and eng_yomon[1] < 0:
+        qatorlar.append(f"Eng yomon kun: {eng_yomon[0]} ({eng_yomon[1]:+d})")
+    qatorlar.append(f"Botga yozilganlar: {oxirgi.get('bot_obuna', 0)} ta")
+    return {"matn": "\n".join(qatorlar), "azo": azo, "kun": kun,
+            "hafta": hafta, "ortacha": ortacha,
+            "eng_yaxshi": eng_yaxshi, "eng_yomon": eng_yomon}
+
+
+TAKLIF_AMALLAR = ("post", "sorovnoma", "pin", "jadval", "qolda")
+
+
+def osish_takliflari(tahlil):
+    """AI'dan aniq, bajariladigan o'sish takliflarini so'raydi.
+    Google qidiruvi yoqilgan — jahon va O'zbekiston tendensiyalaridan
+    foydalanadi. Qaytaradi ro'yxat (bo'sh bo'lishi mumkin)."""
+    oxirgi_postlar = ", ".join(hist_topics(12)) or "(hali yo'q)"
+    prompt = f"""{BOT_KONTEKST.strip()}
+
+Sen shu Telegram kanalining O'SISH BO'YICHA MASLAHATCHISISAN.
+Vazifang — kanalni haqiqatda o'stiradigan, SIFATLI auditoriya
+jalb qiladigan aniq harakatlar taklif qilish.
+
+KANALNING HOZIRGI HOLATI (o'zim o'lchadim):
+{tahlil['matn']}
+
+Oxirgi chiqqan post mavzulari: {oxirgi_postlar}
+
+QIDIRUVDAN FOYDALAN va quyidagilarni bil:
+- 2026-yilda Telegram kanallarini o'stirishning eng samarali,
+  amalda ishlayotgan usullari qanday (jahon tajribasi)
+- O'zbekistonda hozir startap, biznes, texnologiya sohasida
+  qanday mavzular qizib turibdi, odamlar nimani ko'p qidirmoqda
+- Boshqa muvaffaqiyatli kanallar aynan nima qilyapti
+
+ENDI 3 TA TAKLIF BER. Har biri:
+- ANIQ bo'lsin ("kontent sifatini oshiring" kabi umumiy gap MUTLAQO MAN)
+- Bugun yoki ertaga bajarilishi mumkin bo'lsin
+- Yuqoridagi RAQAMLARGA asoslansin (o'sish sekinlashgan bo'lsa — boshqa,
+  tez o'sayotgan bo'lsa — boshqa taklif)
+- Bir-birini takrorlamasin
+
+Har bir taklif uchun "amal" turini tanla:
+- "sorovnoma" — kanalga so'rovnoma (poll) chiqarish. Bu eng kuchli
+  faollashtirish vositasi. "savol" va "variantlar" (2-6 ta) to'ldir.
+- "post" — kanalga qo'shimcha jalb qiluvchi post chiqarish
+  (savol, muhokama, foydali ro'yxat). "matn" to'ldir — TO'LIQ tayyor
+  post matni, 300-700 belgi, o'zbek tilida.
+- "pin" — muhim xabarni kanal tepasiga qadab qo'yish. "matn" to'ldir.
+- "jadval" — rejalashtirilgan fayl-postlar vaqtini o'zgartirish.
+- "qolda" — bot o'zi bajara olmaydigan, admin qo'li bilan qilinadigan ish
+  (masalan boshqa kanal bilan kelishuv). Bunda "matn" — aniq yo'riqnoma.
+
+Kamida BITTASI "sorovnoma" yoki "post" bo'lsin — ya'ni bot o'zi
+darhol bajara oladigan ish.
+
+FAQAT shu JSON'ni qaytar:
+{{"tahlil": "2-3 jumlada: raqamlar nimani ko'rsatyapti va nega shu takliflar",
+ "takliflar": [
+   {{"nom": "qisqa sarlavha, 3-6 so'z",
+     "sabab": "nega aynan shu, 1-2 jumla — raqam yoki tendensiyaga asoslangan",
+     "amal": "{'|'.join(TAKLIF_AMALLAR)}",
+     "matn": "post/pin matni yoki qo'lda bajariladigan yo'riqnoma",
+     "savol": "sorovnoma bo'lsa — savol matni, aks holda bo'sh",
+     "variantlar": ["sorovnoma javob variantlari"],
+     "kutilgan": "qanday natija kutiladi, 1 jumla"}}
+ ]}}
+
+QOIDA: matnlarda faqat oddiy matn va <b> teg. Markdown ishlatma.
+O'zbek tilida, lotin yozuvida yoz."""
+    d = gem_json(prompt, search=True, temperature=0.85, attempts=2)
+    takliflar = []
+    for t in (d.get("takliflar") or [])[:5]:
+        if not isinstance(t, dict):
+            continue
+        amal = (t.get("amal") or "qolda").strip().lower()
+        if amal not in TAKLIF_AMALLAR:
+            amal = "qolda"
+        variantlar = [str(v).strip()[:100]
+                      for v in (t.get("variantlar") or []) if str(v).strip()]
+        takliflar.append({
+            "nom": clean(t.get("nom", ""))[:80] or "Taklif",
+            "sabab": clean(t.get("sabab", ""))[:400],
+            "amal": amal,
+            "matn": clean(t.get("matn", ""))[:900],
+            "savol": clean(t.get("savol", ""))[:280],
+            "variantlar": variantlar[:6],
+            "kutilgan": clean(t.get("kutilgan", ""))[:300],
+            "bajarildi": False,
+        })
+    return clean(d.get("tahlil", ""))[:600], takliflar
+
+
+_TAKLIF_BELGI = {"post": "📝", "sorovnoma": "📊", "pin": "📌",
+                 "jadval": "🗓", "qolda": "✋"}
+
+
+def takliflarni_korsat(paket=None):
+    """Saqlangan takliflarni tugmalar bilan adminga yuboradi."""
+    if paket is None:
+        paket, _ = _gh_json_oqi("takliflar.json", {})
+    takliflar = (paket or {}).get("takliflar") or []
+    if not takliflar:
+        tg_msg(TELEGRAM_ADMIN_ID,
+               "Hozircha tayyor taklif yo'q. Kechqurungi post chiqqach, "
+               "kanal holatini tahlil qilib, yangi takliflar tayyorlayman.")
+        return
+    qismlar = ["📈 <b>Kanalni o'stirish — bugungi takliflar</b>"]
+    if paket.get("holat"):
+        qismlar.append(f"\n<b>Hozirgi holat:</b>\n<code>{html.escape(paket['holat'])}</code>")
+    if paket.get("tahlil"):
+        qismlar.append(f"\n<b>Mening xulosam:</b>\n{html.escape(paket['tahlil'])}")
+    tugmalar = []
+    for i, t in enumerate(takliflar, 1):
+        belgi = _TAKLIF_BELGI.get(t.get("amal"), "•")
+        holat = " ✅" if t.get("bajarildi") else ""
+        qismlar.append(
+            f"\n{belgi} <b>{i}. {html.escape(t.get('nom', ''))}</b>{holat}\n"
+            f"{html.escape(t.get('sabab', ''))}\n"
+            f"<i>Kutilgan natija: {html.escape(t.get('kutilgan', ''))}</i>")
+        if t.get("amal") == "sorovnoma" and t.get("savol"):
+            qismlar.append(f"<i>So'rovnoma: {html.escape(t['savol'])}</i>")
+        elif t.get("matn"):
+            qismlar.append(f"<i>Matn: {html.escape(t['matn'][:200])}…</i>")
+        if not t.get("bajarildi") and t.get("amal") != "qolda":
+            tugmalar.append([{"text": f"{belgi} {i}-ni bajar",
+                              "callback_data": f"tkl:{i}"}])
+    qismlar.append("\n<i>Bajarish uchun tugmani bosing yoki "
+                   "«1-taklifni bajar» deb yozing.</i>")
+    matn = "\n".join(qismlar)
+    if len(matn) > MESSAGE_LIMIT:
+        # Teg o'rtasidan kesib qo'ymaslik uchun — qator chegarasida kesamiz
+        matn = matn[:MESSAGE_LIMIT - 20].rsplit("\n", 1)[0] + "\n…"
+    markup = {"inline_keyboard": tugmalar} if tugmalar else None
+    tg_msg(TELEGRAM_ADMIN_ID, matn, markup=markup)
+
+
+def kunlik_osish_tahlili(majburiy=False):
+    """Kuniga bir marta: statistikani o'lchaydi, tahlil qiladi,
+    takliflar tayyorlaydi va adminga yuboradi."""
+    bugun = now().strftime("%Y-%m-%d")
+    eski, _ = _gh_json_oqi("takliflar.json", {})
+    if not majburiy and (eski or {}).get("sana") == bugun:
+        log("[osish] bugun taklif allaqachon berilgan")
+        return
+    log("[osish] statistika o'lchanmoqda")
+    kunlar = statistika_yangila()
+    tahlil = statistika_tahlil(kunlar)
+    try:
+        xulosa, takliflar = osish_takliflari(tahlil)
+    except Exception as e:
+        log(f"[osish] taklif tayyorlanmadi: {e}")
+        tg_msg(TELEGRAM_ADMIN_ID,
+               f"📈 <b>Kanal holati</b>\n\n<code>{html.escape(tahlil['matn'])}</code>\n\n"
+               f"<i>Takliflar tayyorlanmadi (AI javob bermadi). "
+               f"Keyinroq «taklif» deb yozsangiz — qayta urinaman.</i>")
+        return
+    paket = {"sana": bugun, "holat": tahlil["matn"], "tahlil": xulosa,
+             "takliflar": takliflar}
+    try:
+        _gh_json_yoz("takliflar.json", paket, f"osish: {bugun} takliflari")
+    except Exception as e:
+        log(f"[osish] saqlanmadi: {e}")
+    takliflarni_korsat(paket)
+
+
+def taklifni_bajar(nomer):
+    """Adminning ruxsati bilan taklifni BOT O'ZI bajaradi."""
+    paket, sha = _gh_json_oqi("takliflar.json", {})
+    takliflar = (paket or {}).get("takliflar") or []
+    try:
+        t = takliflar[int(nomer) - 1]
+    except (ValueError, TypeError, IndexError):
+        tg_msg(TELEGRAM_ADMIN_ID,
+               f"{nomer}-taklif topilmadi. «taklif» deb yozing — "
+               f"ro'yxatni qayta ko'rsataman.")
+        return False
+    if t.get("bajarildi"):
+        tg_msg(TELEGRAM_ADMIN_ID,
+               f"<b>{t.get('nom')}</b> allaqachon bajarilgan.")
+        return False
+
+    amal = t.get("amal")
+    natija = ""
+    try:
+        if amal == "sorovnoma":
+            variantlar = [v for v in (t.get("variantlar") or []) if v][:6]
+            savol = t.get("savol") or t.get("nom")
+            if len(variantlar) < 2:
+                variantlar = ["Ha", "Yo'q"]
+            tg_call("sendPoll", data={
+                "chat_id": TELEGRAM_CHANNEL,
+                "question": savol[:300],
+                "options": json.dumps(variantlar, ensure_ascii=False),
+                "is_anonymous": "true", "allows_multiple_answers": "false"})
+            natija = "So'rovnoma kanalga chiqdi."
+        elif amal == "post":
+            matn = imzo_qosh(t.get("matn", ""))
+            if not matn.strip():
+                raise RuntimeError("post matni bo'sh")
+            tg_msg(TELEGRAM_CHANNEL, matn[:MESSAGE_LIMIT])
+            natija = "Post kanalga chiqdi."
+        elif amal == "pin":
+            matn = t.get("matn", "").strip()
+            if not matn:
+                raise RuntimeError("pin matni bo'sh")
+            r = tg_msg(TELEGRAM_CHANNEL, matn[:MESSAGE_LIMIT])
+            try:
+                tg_call("pinChatMessage", data={
+                    "chat_id": TELEGRAM_CHANNEL,
+                    "message_id": r.get("message_id"),
+                    "disable_notification": "true"})
+                natija = "Xabar kanalga chiqdi va qadab qo'yildi."
+            except Exception as e:
+                natija = ("Xabar chiqdi, lekin qadab bo'lmadi — botga "
+                          f"kanalda «Pin messages» huquqini bering.\n"
+                          f"<code>{str(e)[:200]}</code>")
+        elif amal == "jadval":
+            natija = _jadval_taklifi(t)
+        else:
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   f"✋ <b>{t.get('nom')}</b> — buni men o'zim bajara "
+                   f"olmayman, qo'l bilan qilinadi:\n\n"
+                   f"{html.escape(t.get('matn', ''))}")
+            return False
+    except Exception as e:
+        log(f"[osish] taklif bajarilmadi: {e}")
+        tg_msg(TELEGRAM_ADMIN_ID,
+               f"❌ <b>{t.get('nom')}</b> bajarilmadi:\n"
+               f"<code>{str(e)[:300]}</code>")
+        return False
+
+    t["bajarildi"] = True
+    t["bajarilgan_vaqt"] = now().strftime("%Y-%m-%d %H:%M")
+    try:
+        _gh_json_yoz("takliflar.json", paket,
+                     f"osish: {nomer}-taklif bajarildi", sha=sha)
+    except Exception as e:
+        log(f"[osish] holat saqlanmadi: {e}")
+    tg_msg(TELEGRAM_ADMIN_ID,
+           f"✅ <b>{html.escape(t.get('nom', ''))}</b> — bajarildi.\n\n"
+           f"{natija}\n\n<i>{html.escape(t.get('kutilgan', ''))}</i>")
+    return True
+
+
+def _jadval_taklifi(t):
+    """«jadval» turidagi taklif — rejalashtirilgan fayl-postlarni
+    adminga ko'rsatadi (vaqtni o'zgartirish uchun)."""
+    royxat, _ = _gh_json_oqi("maxsus_postlar.json", [])
+    kutayotgan = [x for x in (royxat or [])
+                  if isinstance(x, dict) and not x.get("yuborilgan")]
+    if not kutayotgan:
+        return ("Navbatda turgan fayl-post yo'q — jadvalda "
+                "o'zgartiradigan narsa topilmadi.")
+    qatorlar = "\n".join(
+        f"• {x.get('fayl')} — {x.get('sana')} {x.get('vaqt') or ''}".rstrip()
+        for x in kutayotgan)
+    return (f"Navbatdagi fayl-postlar:\n{qatorlar}\n\n"
+            f"Vaqtini o'zgartirish uchun menga shunday yozing: "
+            f"«{kutayotgan[0].get('fayl', 'fayl')} ni 27.08 19:30 ga ko'chir».")
+
+
 def tg_send_post(chat, post):
     """Rasm + matn + audio yuboradi. Matn caption limitidan uzun bo'lsa —
     rasm alohida, matn alohida xabar sifatida ketadi."""
@@ -2575,6 +2962,15 @@ def agent6_publish(post):
     hist_add(post["topic"].get("topic", ""), post.get("title", ""), extra)
     log(f"[6-agent] Kanalga chiqdi — message_id {mid}")
 
+    # Kechqurungi post — kunning oxirgi posti. Shundan keyin bot kanal
+    # holatini o'lchab, o'sish takliflarini tayyorlaydi va adminga
+    # yuboradi. Xato bo'lsa post chiqishiga ta'sir qilmasin.
+    if SLOT != "ertalab":
+        try:
+            kunlik_osish_tahlili()
+        except Exception as e:
+            log(f"[osish] kunlik tahlil xatosi: {e}")
+
 
 # ══════════════════════════════════════════════════════════════════
 #  8-QISM — OQIM
@@ -2928,6 +3324,15 @@ Masalan shunday deyishingiz mumkin:
 "kelasi haftada nima chiqadi"
 "qaysi kunda turibmiz"
 
+Kanalni o'stirish bo'yicha men o'zim ish olib boraman.
+Har kuni kechqurungi post chiqqandan keyin kanal holatini
+o'lchab, tahlil qilib, 3 ta aniq taklif yuboraman. Xohlagan
+paytingizda o'zingiz ham so'rashingiz mumkin:
+
+"statistika" — kanal necha kishi, qanday o'syapti
+"taklif" — hozir nima qilsam kanal o'sadi
+"1-taklifni bajar" — o'shani men o'zim bajaraman
+
 Kanalga chiqib ketgan post yoqmasa:
 
 "bu post xato bo'libdi, o'chir"
@@ -3036,6 +3441,16 @@ rasmni qayta chizdirish, haftalik ro'yxat berish, holatni aytish,
 KANALDA ALLAQACHON CHIQQAN oxirgi postni o'chirish yoki uni o'chirib
 yangi rasm/matn bilan qayta tayyorlash (tahrirlash).
 
+O'SISH MASLAHATCHISI: har kuni kechqurungi post chiqqandan keyin bot
+kanal a'zolari sonini o'lchaydi (statistika.json), o'sish tezligini
+tahlil qiladi, jahon va O'zbekistondagi tendensiyalarni qidiradi va
+shu asosda 3 ta ANIQ taklif tayyorlab adminga yuboradi. Admin rozi
+bo'lsa (tugma yoki "1-taklifni bajar"), botning o'zi bajaradi:
+kanalga so'rovnoma (poll) chiqarish, qo'shimcha jalb qiluvchi post
+chiqarish, muhim xabarni qadab qo'yish (pin), fayl-postlar jadvalini
+ko'rsatish. Admin istagan payt "taklif" yoki "statistika" desa ham
+bo'ladi.
+
 Bot GitHub bilan bog'langan: admin bilan bo'lgan har bir gap repodagi
 suhbat/ papkasiga yozib boriladi, va admin aytgan doimiy sozlamalar
 sozlamalar.json fayliga saqlanadi. Ya'ni admin Telegram orqali GitHub'ni
@@ -3048,7 +3463,8 @@ chiqqan postni o'chira/tahrirlay oladi — undan oldingilarini emas.
 
 
 AMALLAR = ("hikoya", "dars", "yangilik", "haftalik", "holat",
-           "yordam", "ochir", "tahrirla", "sozla", "javob")
+           "yordam", "ochir", "tahrirla", "sozla", "javob",
+           "taklif", "bajar", "statistika")
 
 # ── Suhbat xotirasi ──────────────────────────────────────────────
 # Bot oxirgi gaplarni eslab turadi — shuning uchun "ha", "yo'q",
@@ -3129,6 +3545,13 @@ AMALLAR:
 - "yangilik" — yangi yangilik posti tayyorlash
 - "haftalik" — kelgusi 7 kunda nima chiqishi ro'yxati
 - "holat" — qaysi hikoya/darsda turganimiz
+- "statistika" — kanal a'zolari soni, o'sish tezligi (raqamlar)
+- "taklif" — kanalni o'stirish bo'yicha bugungi takliflarni ko'rsatish
+  yoki yangisini tayyorlash ("nima qilsam kanal o'sadi", "maslahat ber",
+  "takliflaring bormi", "kanalni qanday o'stiraman")
+- "bajar" — allaqachon berilgan takliflardan birini BAJARISH.
+  "raqam" maydoniga taklif raqamini yoz ("1-taklifni bajar",
+  "birinchisini qil", "ha bajar" — oxirgi taklif haqida gap ketayotgan bo'lsa)
 - "yordam" — nima qila olishimni tushuntirish
 - "ochir" — kanalga chiqib ketgan oxirgi postni o'chirish
 - "tahrirla" — kanalga chiqib ketgan oxirgi postni o'chirib, yangi rasm
@@ -3201,7 +3624,11 @@ _KALIT_SOZLAR = [
     (("dars", "kurs"), "dars"),
     (("yangilik", "xabar", "news"), "yangilik"),
     (("haftalik", "hafta", "kelgusi", "kelasi"), "haftalik"),
-    (("holat", "qayerda", "qaysi kun", "nechanchi", "statistika"), "holat"),
+    (("taklifni bajar", "taklifingni bajar", "bajarib yubor"), "bajar"),
+    (("taklif", "maslahat", "o'stir", "ostir", "o'sish", "osish",
+      "o'sadi", "osadi", "ko'paytir", "kopaytir", "ko'pay", "kopay"), "taklif"),
+    (("statistika", "a'zo", "azo", "obunachi", "necha kishi"), "statistika"),
+    (("holat", "qayerda", "qaysi kun", "nechanchi"), "holat"),
     (("yordam", "nima qila", "yordamchi", "help", "start"), "yordam"),
 ]
 
@@ -3248,7 +3675,14 @@ _TEZ_NAQSHLAR = [
      "dars", None),
     (r"^(yangilik|yangilikni|yangiliklar)\s*(chiqar|korsat|ko'rsat|tayyorla|ber)?\s*$",
      "yangilik", None),
-    (r"^(holat|holatim|qayerdamiz|qaysi kunda|statistika)\s*\??$", "holat", None),
+    (r"^(holat|holatim|qayerdamiz|qaysi kunda)\s*\??$", "holat", None),
+    (r"^(statistika|stat|o'?sish|osish|kanal holati|azolar|a'?zolar)"
+     r"\s*(qanday|nechta|korsat|ko'?rsat)?\s*\??$", "statistika", None),
+    (r"^(taklif|takliflar|takliflaring|taklifing|maslahat|maslahatlar)"
+     r"\s*(bormi|korsat|ko'?rsat|ber)?\s*\??$", "taklif", None),
+    (r"^(\d{1,2})\s*[-\s]?\s*(taklif|taklifni|taklifingni)\s*"
+     r"(bajar|qil|chiqar|bajarib yubor)?\s*$", "bajar", 1),
+    (r"^(bajar|qil|chiqar)\s*(\d{1,2})\s*[-\s]?\s*(taklif\w*)?\s*$", "bajar", 2),
     (r"^(haftalik|kelasi hafta|kelgusi hafta)\s*\??$", "haftalik", None),
     (r"^(yordam|help|start|nima qila olasan)\s*\??$", "yordam", None),
 ]
@@ -3298,7 +3732,11 @@ def oddiy_tushun(matn):
                     "holat": "hozirgi holatni aytish",
                     "ochir": "kanaldagi oxirgi postni o'chirish",
                     "tahrirla": "oxirgi postni qayta tayyorlash",
-                    "yordam": "nima qila olishimni aytish"}[amal]
+                    "taklif": "kanalni o'stirish bo'yicha taklif berish",
+                    "statistika": "kanal statistikasini ko'rsatish",
+                    "bajar": "taklifni bajarish",
+                    "yordam": "nima qila olishimni aytish"}.get(
+                        amal, "shu ishni qilish")
             return {"amal": amal, "raqam": raqam, "ishonch": 55, "javob": "",
                     "savol": f"Sizni to'g'ri tushundimmi — {nomi} kerakmi?"}
     return {"amal": "javob", "raqam": None, "ishonch": 100, "savol": "",
@@ -3360,6 +3798,35 @@ def buyruqni_bajar(buyruq, raqam, kalit="", qiymat=""):
         return
     if buyruq == "holat":
         tg_msg(TELEGRAM_ADMIN_ID, cmd_holat())
+        return
+    if buyruq == "statistika":
+        tg_msg(TELEGRAM_ADMIN_ID, "⏳ Kanal holatini o'lchayapman...")
+        kunlar = statistika_yangila()
+        t = statistika_tahlil(kunlar)
+        tg_msg(TELEGRAM_ADMIN_ID,
+               f"📊 <b>Kanal statistikasi</b>\n\n<code>{html.escape(t['matn'])}</code>\n\n"
+               f"<i>«taklif» desangiz — shu raqamlar asosida nima qilish "
+               f"kerakligini aytaman.</i>")
+        return
+    if buyruq == "taklif":
+        paket, _ = _gh_json_oqi("takliflar.json", {})
+        bugun = now().strftime("%Y-%m-%d")
+        if (paket or {}).get("sana") == bugun and (paket or {}).get("takliflar"):
+            takliflarni_korsat(paket)
+            return
+        tg_msg(TELEGRAM_ADMIN_ID,
+               "⏳ Kanal holatini o'lchab, jahon va O'zbekiston "
+               "tendensiyalarini ko'rib chiqyapman — 1-2 daqiqa...")
+        kunlik_osish_tahlili(majburiy=True)
+        return
+    if buyruq == "bajar":
+        if not raqam:
+            # Raqam aytilmagan — bajarilmagan takliflarni tugmalar bilan
+            # ko'rsatamiz, admin bosib tanlaydi.
+            tg_msg(TELEGRAM_ADMIN_ID, "Qaysi birini bajaray?")
+            takliflarni_korsat()
+            return
+        taklifni_bajar(raqam)
         return
     if buyruq == "haftalik":
         tg_msg(TELEGRAM_ADMIN_ID, "⏳ Tayyorlanmoqda...")
@@ -3466,6 +3933,21 @@ def tugmani_ishla(cq):
     data = cq.get("data", "")
     amal, _, tok = data.partition(":")
     mid = (cq.get("message") or {}).get("message_id")
+
+    # ── O'sish taklifini bajarish ───────────────────────────────
+    # Takliflar boshqa jarayonda (kunlik post workflow'ida) tayyorlangan
+    # bo'lishi mumkin, shuning uchun _PENDING'ga emas, GitHub'dagi
+    # takliflar.json'ga tayanamiz.
+    if amal == "tkl":
+        tg_answer(cq["id"], "Bajarilmoqda...")
+        if mid:
+            tg_clear_markup(TELEGRAM_ADMIN_ID, mid)
+        try:
+            taklifni_bajar(tok)
+        except Exception as e:
+            log(f"[osish] tugma xatosi: {e}")
+            _javob_ber(f"Bajarolmadim: <code>{str(e)[:300]}</code>")
+        return
 
     # ── Haftalik 7 kunlik tasdiq ────────────────────────────────
     if amal in ("hafta", "haftayoq"):
@@ -4379,6 +4861,9 @@ def main():
                     help="kelgusi 7 kunlik postlarni adminga yuborish")
     ap.add_argument("--pin", action="store_true",
                     help="pinned.txt ni kanalga chiqarib, qadab qo'yish")
+    ap.add_argument("--osish", action="store_true",
+                    help="kanal statistikasini o'lchab, o'sish takliflarini "
+                         "tayyorlab adminga yuborish")
     ap.add_argument("--tur", default="", choices=["", "yangilik", "kurs",
                                                   "hikoya", "ai"],
                     help="post turini majburan tanlash")
@@ -4425,6 +4910,14 @@ def main():
             return 0
         except Exception as e:
             log(f"[FATAL] pin: {e}")
+            return 1
+
+    if args.osish:
+        try:
+            kunlik_osish_tahlili(majburiy=True)
+            return 0
+        except Exception as e:
+            log(f"[FATAL] o'sish tahlili: {e}")
             return 1
 
     if args.doctor:
