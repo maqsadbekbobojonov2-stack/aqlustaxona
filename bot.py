@@ -154,6 +154,7 @@ STORIES_JSON = ROOT / "stories.json"
 STORIES_STATE = ROOT / "stories_state.json"
 STORIES_TOTAL = 365
 KURS_JSON = ROOT / "kurs.json"
+MAXSUS_POST_FAYL = ROOT / "maxsus_postlar.json"
 
 # Preview faqat yangilik uchun keladi — hikoya va kurs matni oldindan
 # tayyor va haftalik ko'rikdan o'tgan.
@@ -2056,6 +2057,57 @@ def imzo_qosh(text, post=None):
     if kanal and kanal not in text:
         text += f"\n\n👉 {kanal}"
     return text
+
+
+def maxsus_postlarni_tekshir():
+    """maxsus_postlar.json ichidagi oldindan tayyorlangan fayllarni
+    (masalan bepul qo'llanmalar) belgilangan sanasida kanalga bir marta,
+    chiroyli caption bilan chiqaradi. Har bot.py ishga tushganda
+    (kunlik jadval, qo'lda ishga tushirish, doctor va h.k.) chaqiriladi —
+    shuning uchun oddiy kunlik cronni ham ishlatib, alohida vaqt
+    belgilashning hojati yo'q."""
+    if not MAXSUS_POST_FAYL.exists():
+        return
+    try:
+        royxat = json.loads(MAXSUS_POST_FAYL.read_text(encoding="utf-8"))
+    except Exception as e:
+        log(f"[maxsus] o'qishda xato: {e}")
+        return
+    if not isinstance(royxat, list):
+        return
+
+    bugun = now().strftime("%Y-%m-%d")
+    ozgardi = False
+    for item in royxat:
+        if not isinstance(item, dict) or item.get("yuborilgan"):
+            continue
+        if item.get("sana", "9999-99-99") > bugun:
+            continue
+        yol = ROOT / item.get("fayl", "")
+        if not yol.exists():
+            log(f"[maxsus] fayl topilmadi: {yol}")
+            continue
+        try:
+            matn = imzo_qosh(item.get("caption", ""))
+            if len(matn) > CAPTION_LIMIT:
+                matn = matn[:CAPTION_LIMIT]
+            with open(yol, "rb") as f:
+                tg_call("sendDocument",
+                        data={"chat_id": TELEGRAM_CHANNEL, "parse_mode": "HTML",
+                              "caption": matn},
+                        files={"document": f}, timeout=180)
+            item["yuborilgan"] = True
+            ozgardi = True
+            log(f"[maxsus] kanalga yuborildi: {item.get('fayl')}")
+        except Exception as e:
+            log(f"[maxsus] yuborishda xato ({item.get('fayl')}): {e}")
+
+    if ozgardi:
+        try:
+            MAXSUS_POST_FAYL.write_text(
+                json.dumps(royxat, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception as e:
+            log(f"[maxsus] saqlashda xato: {e}")
 
 
 def tg_send_post(chat, post):
@@ -4022,6 +4074,11 @@ def main():
                                                   "hikoya", "ai"],
                     help="post turini majburan tanlash")
     args = ap.parse_args()
+
+    try:
+        maxsus_postlarni_tekshir()
+    except Exception as e:
+        log(f"[maxsus] umumiy xato: {e}")
 
     if args.tur:
         globals()["POST_SOURCE"] = args.tur
