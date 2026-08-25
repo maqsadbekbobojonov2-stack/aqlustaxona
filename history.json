@@ -60,5 +60,12 @@
     "message_id": 16,
     "tur": "stories",
     "day": 3
+  },
+  {
+    "date": "2026-08-25 19:45",
+    "topic": "O'zbekiston Markaziy banki raqamli valyuta va steyblcoinlarni o'rganmoqda",
+    "title": "Markaziy bank steyblcoin va raqamli so'm modelini o'rganmoqda",
+    "message_id": 19,
+    "tur": "yangilik"
   }
 ]
