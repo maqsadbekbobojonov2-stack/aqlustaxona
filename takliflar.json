@@ -1,0 +1,42 @@
+{
+  "sana": "2026-08-26",
+  "holat": "Kanal a'zolari: 22 ta\nBotga yozilganlar: 4 ta",
+  "tahlil": "Kanal a'zolari soni sekin o'sib bormoqda, shuning uchun faollashtirish choralarini ko'rish kerak. O'zbekistonda startap va texnologiya sohasida qiziqish yuqori.",
+  "takliflar": [
+    {
+      "nom": "Startap g'oyalari",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, shuning uchun startap g'oyalari haqida so'rovnoma chiqarish kerak.",
+      "amal": "sorovnoma",
+      "matn": "",
+      "savol": "Sizning startap g'oyangiz nima?",
+      "variantlar": [
+        "Texnologiya",
+        "E-commerce",
+        "Ta'lim",
+        "Sog'liqni saqlash"
+      ],
+      "kutilgan": "Kanal a'zolari faollashadi",
+      "bajarildi": false
+    },
+    {
+      "nom": "Qo'shimcha post",
+      "sabab": "Kanalda qo'shimcha post chiqarish orqali auditoriya jalb qilish mumkin.",
+      "amal": "post",
+      "matn": "Startap g'oyalarini ishlab chiqish uchun 5 ta savol: <b>1. Nima uchun?</b>, <b>2. Kim uchun?</b>, <b>3. Qanday?</b>, <b>4. Qachon?</b>, <b>5. Qancha?</b>",
+      "savol": "",
+      "variantlar": [],
+      "kutilgan": "Kanal a'zolari soni o'sadi",
+      "bajarildi": false
+    },
+    {
+      "nom": "Muhim xabar",
+      "sabab": "O'zbekiston Markaziy banki raqamli valyuta va steyblcoinlarni o'rganmoqda, shuning uchun muhim xabarni kanal tepasiga qadab qo'yish kerak.",
+      "amal": "pin",
+      "matn": "O'zbekiston Markaziy banki raqamli valyuta va steyblcoinlarni o'rganmoqda. Buni bilish kerak!",
+      "savol": "",
+      "variantlar": [],
+      "kutilgan": "Kanal a'zolari xabardor bo'ladilar",
+      "bajarildi": false
+    }
+  ]
+}
