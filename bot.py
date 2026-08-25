@@ -3623,6 +3623,60 @@ def mehmon_top(uid):
                 + f"\n\nSizniki: <b>{taklif_soni(uid)}</b> ta · /taklif")
 
 
+MASLAHATCHI_KONTEKST = (
+    "Siz — @aqlustaxonastartap Telegram kanalining rasmiy botisiz. Kanal "
+    "O'zbekistondagi startap va tadbirkorlik mavzusiga bag'ishlangan: har kuni "
+    "haqiqiy asoschilar hikoyasi va 96 darslik bepul kurs (g'oya, MVP, "
+    "narx/marketing, YaTT/MChJ ro'yxatdan o'tish, IT Park grantlari). Botda "
+    "bepul 17 sahifalik \"Startapni noldan boshlash\" qo'llanmasi bor — uni "
+    "olish uchun avval kanalga obuna bo'lish, keyin /kitob buyrug'ini yozish "
+    "kerak. Kanalning maqsadi — odamlarga startap qurishda haqiqiy, amaliy "
+    "yordam berish."
+)
+
+
+def mehmon_maslahat(uid, matn):
+    """Admin o'rniga bot AI yordamida qisqa, amaliy maslahat beradi —
+    savol startap/biznes/kanal mavzusida bo'lsa. Xato bo'lsa yoki AI
+    ishlamasa, oddiy menyu xabariga qaytamiz (chaqiruvchi joyda)."""
+    prompt = (
+        f"{MASLAHATCHI_KONTEKST}\n\n"
+        f"Foydalanuvchi botga shu xabarni yozdi: \"{matn[:500]}\"\n\n"
+        "Unga o'zbek tilida, samimiy va aniq amaliy maslahat bering. "
+        "Qoidalar:\n"
+        "1) 60–500 so'z oralig'ida, ortiqcha suv bo'lmasin — to'g'ridan-to'g'ri "
+        "javob bering.\n"
+        "2) Oddiy matn yozing — HTML yoki Markdown teglar ishlatmang.\n"
+        "3) Agar savol umuman startap/biznes/AI/kanal mavzusiga aloqasi "
+        "bo'lmasa, muloyimlik bilan buni ayting va kanal mavzusiga qaytaring — "
+        "aloqasiz savolga to'liq javob bermang.\n"
+        "4) Aniq huquqiy/soliq/grant raqamlari yoki foizlarni ixtiyoriy "
+        "ravishda to'qimang — kerak bo'lsa rasmiy manbaga (my.gov.uz, "
+        "soliq.uz, it-park.uz) yo'naltiring.\n"
+        "5) O'zingizni bot ekaningizni yashirmang, lekin sovuq/robotik "
+        "yozmang — odam bilan gaplashayotgandek yozing.\n"
+        "6) Kerak bo'lsagina (majburiy emas) kanalning kursi yoki bepul "
+        "qo'llanmasiga bir og'iz ishora qiling, lekin har javobda reklama "
+        "qilib yubormang."
+    )
+    try:
+        javob = (gem_text(prompt, temperature=0.6, max_tokens=900) or "").strip()
+    except Exception as e:
+        log(f"[maslahat] AI xato: {e}")
+        javob = ""
+    if not javob:
+        return False
+    javob = html.escape(javob)
+    javob += ("\n\n<i>Batafsil: /kitob — bepul qo'llanma, "
+              "/taklif — do'stlaringizni chaqiring, /top — reyting.</i>")
+    try:
+        tg_msg(uid, javob)
+        return True
+    except Exception as e:
+        log(f"[maslahat] yuborishda xato: {e}")
+        return False
+
+
 def mehmon_ishla(msg):
     """Admin bo'lmagan odamdan kelgan xabar."""
     frm = msg.get("from") or {}
@@ -3654,6 +3708,11 @@ def mehmon_ishla(msg):
         else:
             tg_msg(uid, "Avval kanalga obuna bo'ling 👇",
                    markup=_obuna_tugma())
+        return
+
+    # Erkin savol — tanilmagan buyruq emas: AI orqali admin o'rniga
+    # qisqa, amaliy maslahat beramiz. AI ishlamasa — oddiy menyuga tushamiz.
+    if matn and not matn.startswith("/") and mehmon_maslahat(uid, matn):
         return
 
     tg_msg(uid,
