@@ -2099,6 +2099,12 @@ def maxsus_postlarni_tekshir():
             item["yuborilgan"] = True
             ozgardi = True
             log(f"[maxsus] kanalga yuborildi: {item.get('fayl')}")
+            try:
+                tg_msg(TELEGRAM_ADMIN_ID,
+                       f"✅ <b>Maxsus post kanalga chiqdi</b>\n\n📄 {item.get('fayl')}\n"
+                       f"📢 {sozlama('kanal_nomi', TELEGRAM_CHANNEL)}")
+            except Exception as e:
+                log(f"[maxsus] admin xabari yuborilmadi: {e}")
         except Exception as e:
             log(f"[maxsus] yuborishda xato ({item.get('fayl')}): {e}")
 
