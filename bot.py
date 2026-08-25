@@ -1493,6 +1493,13 @@ GEM_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 # o'sha modelga umuman yubormaymiz — har safar 400 olib vaqt yo'qotmaymiz.
 _THINKING_YOQ = set()
 _JSON_YOQ = set()
+# Oxirgi matn qaysi model tomonidan yozilganini eslab qolamiz. Bu muhim:
+# Gemini kvotasi tugab, bepul zaxiraga (Cloudflare/Grok) tushib qolsak —
+# u yerda GOOGLE QIDIRUVI YO'Q, ya'ni "tendensiya" degan gaplar
+# qidiruvdan emas, modelning o'z xotirasidan chiqadi. Shuni adminga
+# ochiq aytishimiz kerak, aks holda to'qilgan ma'lumot haqiqat kabi
+# ko'rinadi.
+_OXIRGI_MODEL = [""]
 
 
 def gem_post(model, body):
@@ -1593,12 +1600,14 @@ def gem_text(prompt, search=False, temperature=0.9, json_mode=False,
             continue
         if model != birinchi:
             print(f"[gemini] matn modeli: {model}")
+        _OXIRGI_MODEL[0] = model
         break
     if resp is None:
         # 1-zaxira: Grok (agar hisobda kredit bo'lsa)
         if GROK_KEYS and not _GROK_OLDI[0]:
             try:
                 print("[gemini] hammasi ishlamadi — Grok'ga o'tilmoqda")
+                _OXIRGI_MODEL[0] = "grok"
                 return grok_text(prompt, json_mode=json_mode or not search,
                                  max_tokens=min(max_tokens, 8192))
             except Exception as e:
@@ -1607,6 +1616,7 @@ def gem_text(prompt, search=False, temperature=0.9, json_mode=False,
         # 2-zaxila: Cloudflare Workers AI — bepul, kunlik limiti alohida
         if CF_ACCOUNT and CF_TOKEN:
             print("[gemini] Cloudflare matn modeliga o'tilmoqda (bepul zaxira)")
+            _OXIRGI_MODEL[0] = "cloudflare"
             return cf_text(prompt, json_mode=json_mode or not search,
                            temperature=temperature,
                            max_tokens=min(max_tokens, 8192))
@@ -2462,7 +2472,10 @@ O'zbek tilida, lotin yozuvida yoz."""
             "kutilgan": clean(t.get("kutilgan", ""))[:300],
             "bajarildi": False,
         })
-    return clean(d.get("tahlil", ""))[:600], takliflar
+    # Qidiruv faqat Gemini'da bor. Zaxiraga tushib qolgan bo'lsak —
+    # "tendensiya" degan gaplar qidiruvdan emas, modelning xotirasidan.
+    ogoh = _OXIRGI_MODEL[0] in ("grok", "cloudflare")
+    return clean(d.get("tahlil", ""))[:600], takliflar, ogoh
 
 
 _TAKLIF_BELGI = {"post": "📝", "sorovnoma": "📊", "pin": "📌",
@@ -2499,6 +2512,13 @@ def takliflarni_korsat(paket=None):
         if not t.get("bajarildi") and t.get("amal") != "qolda":
             tugmalar.append([{"text": f"{belgi} {i}-ni bajar",
                               "callback_data": f"tkl:{i}"}])
+    if paket.get("ogohlantirish"):
+        qismlar.append(
+            "\n⚠️ <i>Diqqat: Gemini kvotasi tugagani uchun bu takliflarni "
+            "zaxira model yozdi — unda Google qidiruvi YO'Q. Ya'ni "
+            "«tendensiya» haqidagi gaplar qidiruvdan emas, modelning o'z "
+            "xotirasidan. Raqamlar (a'zolar soni) esa haqiqiy — ularni men "
+            "o'zim o'lchadim.</i>")
     qismlar.append("\n<i>Bajarish uchun tugmani bosing yoki "
                    "«1-taklifni bajar» deb yozing.</i>")
     matn = "\n".join(qismlar)
@@ -2521,7 +2541,7 @@ def kunlik_osish_tahlili(majburiy=False):
     kunlar = statistika_yangila()
     tahlil = statistika_tahlil(kunlar)
     try:
-        xulosa, takliflar = osish_takliflari(tahlil)
+        xulosa, takliflar, ogoh = osish_takliflari(tahlil)
     except Exception as e:
         log(f"[osish] taklif tayyorlanmadi: {e}")
         tg_msg(TELEGRAM_ADMIN_ID,
@@ -2530,7 +2550,8 @@ def kunlik_osish_tahlili(majburiy=False):
                f"Keyinroq «taklif» deb yozsangiz — qayta urinaman.</i>")
         return
     paket = {"sana": bugun, "holat": tahlil["matn"], "tahlil": xulosa,
-             "takliflar": takliflar}
+             "takliflar": takliflar, "ogohlantirish": ogoh,
+             "model": _OXIRGI_MODEL[0]}
     try:
         _gh_json_yoz("takliflar.json", paket, f"osish: {bugun} takliflari")
     except Exception as e:
