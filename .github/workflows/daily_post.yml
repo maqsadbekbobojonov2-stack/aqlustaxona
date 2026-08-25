@@ -33,6 +33,10 @@ on:
         description: "Haftalik ko'rik: 7 kunlik postlarni adminga yuborish"
         type: boolean
         default: false
+      osish:
+        description: "O'sish tahlili: statistika + takliflarni adminga yuborish"
+        type: boolean
+        default: false
       day:
         description: "Aniq hikoya raqami (bo'sh — navbatdagisi)"
         required: false
@@ -109,6 +113,12 @@ jobs:
             exit $?
           fi
 
+          # ── O'sish tahlili ─────────────────────────────────────
+          if [ "${{ github.event.inputs.osish }}" = "true" ]; then
+            python bot.py --osish
+            exit $?
+          fi
+
           # ── Diagnostika ────────────────────────────────────────
           if [ "${{ github.event.inputs.doctor }}" = "true" ]; then
             python bot.py --doctor
@@ -125,10 +135,10 @@ jobs:
       - name: Holatni saqlash
         if: always()
         run: |
-          if [ -n "$(git status --porcelain history.json stories_state.json maxsus_postlar.json)" ]; then
+          if [ -n "$(git status --porcelain history.json stories_state.json maxsus_postlar.json statistika.json takliflar.json)" ]; then
             git config user.name  "aqlustaxona-bot"
             git config user.email "bot@users.noreply.github.com"
-            git add history.json stories_state.json maxsus_postlar.json
+            git add history.json stories_state.json maxsus_postlar.json statistika.json takliflar.json
             git commit -m "chore: post tarixi $(date -u +%F)"
             git pull --rebase --autostash || true
             git push
