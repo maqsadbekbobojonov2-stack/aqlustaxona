@@ -1548,7 +1548,7 @@ def gem_post(model, body):
 
 
 def gem_text(prompt, search=False, temperature=0.9, json_mode=False,
-             max_tokens=16384):
+             max_tokens=16384, models=None):
     def _tana(model):
         """Har bir model uchun so'rovni alohida yig'amiz — chunki
         modellar bir xil sozlamani qabul qilmaydi."""
@@ -1573,8 +1573,16 @@ def gem_text(prompt, search=False, temperature=0.9, json_mode=False,
             gc["responseMimeType"] = "application/json"
         return b
 
-    models = [GEMINI_TEXT_MODEL] + [m for m in TEXT_MODEL_FALLBACKS
-                                     if m != GEMINI_TEXT_MODEL]
+    # `models` berilsa — o'sha ro'yxat (masalan kuchliroq "pro" modeldan
+    # boshlash uchun). Berilmasa — odatdagi tartib.
+    tartib = (list(models) if models else []) + \
+             [GEMINI_TEXT_MODEL] + list(TEXT_MODEL_FALLBACKS)
+    models, korilgan = [], set()
+    for m in tartib:                 # tartibni saqlab, takrorni olib tashlash
+        if m and m not in korilgan:
+            korilgan.add(m)
+            models.append(m)
+    birinchi = models[0]
     resp, last_err = None, None
     for model in models:
         try:
@@ -1583,7 +1591,7 @@ def gem_text(prompt, search=False, temperature=0.9, json_mode=False,
             last_err = e
             print(f"[gemini] {model}: {str(e)[:150]} — keyingi modelga o'tilmoqda")
             continue
-        if model != GEMINI_TEXT_MODEL:
+        if model != birinchi:
             print(f"[gemini] matn modeli: {model}")
         break
     if resp is None:
@@ -1758,14 +1766,14 @@ def grok_text(prompt, json_mode=False, temperature=0.7, max_tokens=8192):
     raise RuntimeError(f"Grok ham javob bermadi: {last}")
 
 
-def gem_json(prompt, search=False, temperature=0.9, attempts=3):
+def gem_json(prompt, search=False, temperature=0.9, attempts=3, models=None):
     """JSON qaytaradigan so'rov. Javob buzilsa qayta uriniladi."""
     last = None
     for i in range(attempts):
         try:
             return parse_json(gem_text(prompt, search=search,
                                        temperature=temperature,
-                                       json_mode=not search))
+                                       json_mode=not search, models=models))
         except RuntimeError as e:
             last = e
             print(f"[gemini] {i+1}-urinish muvaffaqiyatsiz: {str(e)[:200]}")
@@ -2341,6 +2349,12 @@ def statistika_tahlil(kunlar=None):
 
 TAKLIF_AMALLAR = ("post", "sorovnoma", "pin", "jadval", "qolda")
 
+# Kunlik o'sish tahlili — bu kuniga BIR MARTA bo'ladigan, eng muhim
+# "o'ylash" ishi. Shuning uchun kuchliroq modeldan boshlaymiz; topilmasa
+# yoki kvota tugagan bo'lsa, gem_text o'zi odatdagi flash modellarga
+# tushib ketadi.
+OSISH_MODELLAR = ["gemini-3-pro", "gemini-pro-latest", "gemini-3.7-pro"]
+
 
 def osish_takliflari(tahlil):
     """AI'dan aniq, bajariladigan o'sish takliflarini so'raydi.
@@ -2372,6 +2386,33 @@ ENDI 3 TA TAKLIF BER. Har biri:
   tez o'sayotgan bo'lsa — boshqa taklif)
 - Bir-birini takrorlamasin
 
+SIFAT NAMUNASI — farqni yaxshi tushun:
+
+YOMON (bunday YOZMA):
+  nom: "Startap g'oyalari"
+  sabab: "O'zbekistonda startap g'oyalari qizib turibdi"
+  savol: "Sizning startap g'oyangiz nima?"
+  → Nega yomon: hech qanday raqam yo'q, har qanday kanalga to'g'ri
+    keladi, javob bergan odam kanalda qolishi uchun sabab bermaydi.
+
+YAXSHI (shunday yoz):
+  nom: "«Qaysi bosqichdasiz» so'rovnomasi"
+  sabab: "22 a'zoda kuniga o'rtacha +1 — bu juda kam. Kichik kanalda
+    so'rovnoma eng arzon o'sish vositasi: Telegram uni obunachi
+    lentasida yuqoriroq ko'rsatadi va javob bergan odam keyingi
+    postlarni ham ko'radi. Bundan tashqari javoblar menga kelgusi
+    postlarni kimga moslashni aytadi."
+  savol: "Startapingiz hozir qaysi bosqichda?"
+  variantlar: ["Hali faqat g'oya", "MVP qilyapman", "Birinchi mijoz bor",
+               "Sotuv bor, o'smoqchiman", "Hozircha kuzatyapman"]
+  → Nega yaxshi: raqamga tayangan, variantlar odamni segmentga ajratadi,
+    natijadan keyin nima qilish aniq.
+
+QAT'IY TAQIQ: "kontent sifatini oshiring", "ko'proq post qo'ying",
+"reklama bering", "aktiv bo'ling" kabi hech kimga foyda bermaydigan
+umumiy maslahatlar. Har bir "sabab" ichida yo ANIQ RAQAM, yo ANIQ
+TENDENSIYA (qidiruvdan topganing) bo'lishi SHART.
+
 Har bir taklif uchun "amal" turini tanla:
 - "sorovnoma" — kanalga so'rovnoma (poll) chiqarish. Bu eng kuchli
   faollashtirish vositasi. "savol" va "variantlar" (2-6 ta) to'ldir.
@@ -2400,7 +2441,8 @@ FAQAT shu JSON'ni qaytar:
 
 QOIDA: matnlarda faqat oddiy matn va <b> teg. Markdown ishlatma.
 O'zbek tilida, lotin yozuvida yoz."""
-    d = gem_json(prompt, search=True, temperature=0.85, attempts=2)
+    d = gem_json(prompt, search=True, temperature=0.85, attempts=2,
+                 models=OSISH_MODELLAR)
     takliflar = []
     for t in (d.get("takliflar") or [])[:5]:
         if not isinstance(t, dict):
