@@ -356,12 +356,11 @@ ko'ringandan so'ng.
 """
 
 IMAGE_STYLE = """
-A PHOTOREALISTIC 3D RENDER of a real-life scene — the quality of a
-high-end architectural / product visualisation. It must look like a real
-photograph of a real place, only rendered: full HD detail, physically
-correct light, real-world materials and proportions. NOT a cartoon, NOT a
-clay or plastic toy world, NOT a flat illustration, NOT a stylised
-figurine scene.
+A REAL PHOTOGRAPH — as if taken with a professional camera in a real
+place. Not a render, not an illustration: an actual photo, tack sharp,
+with true-to-life detail, real light and real materials. NOT a cartoon,
+NOT a clay or plastic toy world, NOT a flat illustration, NOT a stylised
+figurine scene, NOT a CGI render.
 
 MOST IMPORTANT RULE: the picture must EXPLAIN THE IDEA OF THE POST BY
 ITSELF. A person who only looks at the image, without reading a single
@@ -371,17 +370,18 @@ notebook, a workshop bench, a small shop counter, a table by a window.
 Show the actual situation the text talks about, not a riddle about it.
 
 Composition:
-1. THE SCENE: an ordinary, believable moment, rendered with real-world
-   scale and real materials — paper, wood, fabric, brushed metal, glass,
-   ceramic, skin. Honest textures with fine detail: paper grain, wood
-   pores, fabric weave, slight wear.
-2. LIGHT: physically based rendering — natural daylight from a window or
-   warm indoor light, global illumination, soft realistic shadows, subtle
-   contact shadows and reflections. Nothing plastic or artificially
-   glossy.
-3. CAMERA: 50mm lens look, sharp focus on the subject, background gently
-   out of focus but still readable. Natural colours, true tones, HD, 8K
-   texture detail.
+1. THE SCENE: an ordinary, believable moment photographed at real-world
+   scale with real materials — paper, wood, fabric, brushed metal, glass,
+   ceramic, skin. Honest textures with fine detail visible at pixel level:
+   paper grain, wood pores, fabric weave, slight wear.
+2. LIGHT: real natural daylight from a window or warm indoor light,
+   soft realistic shadows, subtle contact shadows and reflections,
+   high dynamic range. Nothing plastic or artificially glossy.
+3. CAMERA: full-frame DSLR, 50mm lens at f/2.8, TACK SHARP focus on the
+   subject — every edge crisp, no softness anywhere on the subject. The
+   background is gently out of focus but still readable (creamy natural
+   bokeh). Natural colours, true tones, 4K resolution, fine texture
+   detail. Clean, noise-free, perfectly exposed.
 
 Keep it simple and honest: one clear subject, one clear action, 1-3
 objects. A real moment reads better than a crowded concept.
@@ -1866,15 +1866,15 @@ CF_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN", "").strip()
 # IMAGE_STYLE'ni o'sha ko'yi yuborsak, rasm tushunarsiz chiqadi.
 # Shuning uchun bepul xizmatlarga alohida qisqa prompt yasaymiz.
 FLUX_USLUB = (
-    "photorealistic 3D render of a real life scene, hyperrealistic CGI, "
-    "physically based rendering, real world materials — wood, paper, "
-    "fabric, brushed metal, glass, ceramic, real skin, fine surface "
-    "texture detail, natural window daylight, global illumination, soft "
-    "realistic contact shadows, warm terracotta and cream natural palette, "
-    "50mm lens, razor sharp focus on the subject, crisp clean edges, "
-    "ultra detailed, 8K, high resolution octane render, believable "
-    "everyday moment, clean uncluttered composition, single clear focal "
-    "point, 16:9 wide")
+    "a real professional photograph, shot on a full frame DSLR, 50mm lens "
+    "at f/2.8, tack sharp focus, razor crisp edges, extremely fine detail, "
+    "real world materials — wood, paper, fabric, brushed metal, glass, "
+    "ceramic, real skin — visible surface texture, natural window "
+    "daylight, high dynamic range, soft realistic contact shadows, creamy "
+    "natural background bokeh, warm terracotta and cream natural palette, "
+    "true to life colours, 4K, ultra detailed, clean noise free image, "
+    "perfectly exposed, believable everyday moment, clean uncluttered "
+    "composition, single clear focal point")
 
 FLUX_TAQIQ = ("no text, no words, no letters, no numbers, no logo, "
               "no watermark, no close-up human face, no robot, "
@@ -1882,7 +1882,7 @@ FLUX_TAQIQ = ("no text, no words, no letters, no numbers, no logo, "
               "no figurine, not a flat illustration, not stylized, "
               "not cute, not surreal, not absurd, not a joke, "
               "not cluttered, not blurry, no heavy depth of field blur, "
-              "no noise, no grain, no motion blur, not low resolution")
+              "no noise, no grain, no motion blur, not low resolution, not soft, not out of focus, no jpeg artifacts, not a 3d render, not CGI, not digital art, not painting")
 
 
 def flux_prompt(gap):
@@ -1939,10 +1939,36 @@ def _cloudflare(prompt, out_path):
     raise RuntimeError(oxirgi or "Cloudflare noma'lum xato")
 
 
+def rasmni_tiniqlashtir(yol, W=1920, H=1080):
+    """Chizilgan rasmni Telegram siqqanidan keyin ham tiniq qoladigan
+    holatga keltiradi: 16:9 ga kesadi, 1920x1080 ga keltiradi va
+    yumshab qolgan detallarni qaytaradi."""
+    from PIL import Image, ImageFilter, ImageEnhance
+    yol = Path(yol)
+    img = Image.open(yol).convert("RGB")
+    r = max(W / img.width, H / img.height)
+    if abs(r - 1.0) > 0.01:
+        img = img.resize((max(W, round(img.width * r)),
+                          max(H, round(img.height * r))), Image.LANCZOS)
+    x = (img.width - W) // 2
+    y = (img.height - H) // 2
+    img = img.crop((x, y, x + W, y + H))
+    # Kattalashtirish qancha kuchli bo'lsa, shuncha ko'p qaytariladi
+    kuch = int(min(130, 60 + 90 * max(0.0, r - 1.0)))
+    img = img.filter(ImageFilter.UnsharpMask(radius=1.6, percent=kuch,
+                                             threshold=3))
+    img = ImageEnhance.Contrast(img).enhance(1.03)
+    img.save(yol, "PNG", optimize=True)
+    return yol
+
+
 def bepul_rasm(prompt, out_path):
     """Gemini ishlamaganda ishlatiladigan BEPUL rasm chizuvchilar."""
     sabablar = []
-    for nom, f in (("cloudflare", _cloudflare), ("pollinations", _pollinations)):
+    # Pollinations BIRINCHI: u 1920x1080 ni to'g'ridan-to'g'ri chizadi.
+    # Cloudflare flux-1-schnell esa faqat 1024x1024 kvadrat beradi —
+    # uni 16:9 ga cho'zganda tiniqlik yo'qoladi. Shuning uchun zaxira.
+    for nom, f in (("pollinations", _pollinations), ("cloudflare", _cloudflare)):
         try:
             p = f(prompt, out_path)
             print(f"[rasm] bepul zaxira ishladi — {nom}")
@@ -3191,6 +3217,10 @@ it, without reading anything, should understand what the post is about.
 Follow the style rules above exactly. No written words or letters."""
     try:
         p = gem_image(prompt, BUILD / "post.png")
+        try:
+            p = rasmni_tiniqlashtir(p)
+        except Exception as e:
+            log(f"[rasm] tiniqlashtirilmadi: {e}")
         print(f"[3-agent] Rasm tayyor (nano banana) — "
               f"{p.stat().st_size // 1024} KB")
         return p
@@ -3206,6 +3236,10 @@ Follow the style rules above exactly. No written words or letters."""
     # Nano banana pullik bo'lgani uchun ishlamasa — bepul zaxira
     try:
         p = bepul_rasm(prompt, BUILD / "post.png")
+        try:
+            p = rasmni_tiniqlashtir(p)
+        except Exception as e:
+            log(f"[rasm] tiniqlashtirilmadi: {e}")
         print(f"[3-agent] Rasm tayyor (bepul zaxira) — "
               f"{p.stat().st_size // 1024} KB")
         return p
