@@ -20,6 +20,7 @@ matnlarini tahrirlang. Boshqa joyga tegish shart emas.
 
 import argparse
 import base64
+import hashlib
 import html
 import json
 import os
@@ -450,7 +451,15 @@ def parse_json(raw):
 
 
 # ── Tarix ────────────────────────────────────────────────────────
-def hist_load():
+# Tarix ikkita jarayon (kunlik post va soatlab ishlaydigan --listen)
+# tomonidan yozilgani uchun git orqali emas, GitHub API orqali —
+# har safar YANGI holatdan o'qib — yoziladi. Aks holda uzoq ishlayotgan
+# jarayon o'zining eskirgan nusxasini commit qilib, oradagi postning
+# yozuvini o'chirib yuborardi.
+_HIST_KESH = [0.0, None]
+
+
+def _hist_lokal():
     if not HISTORY_FILE.exists():
         return []
     try:
@@ -460,18 +469,44 @@ def hist_load():
         return []
 
 
+def hist_load(yangila=False):
+    if gh_bor():
+        if (not yangila and _HIST_KESH[1] is not None
+                and time.time() - _HIST_KESH[0] < 60):
+            return list(_HIST_KESH[1])
+        try:
+            d, _ = _gh_json_oqi("history.json", None)
+            if isinstance(d, list):
+                _HIST_KESH[0], _HIST_KESH[1] = time.time(), d
+                return list(d)
+        except Exception as e:
+            log(f"[tarix] GitHub'dan o'qilmadi: {e}")
+    return _hist_lokal()
+
+
 def hist_topics(limit=60):
     return [e.get("topic", "") for e in hist_load()[-limit:] if e.get("topic")]
 
 
 def hist_add(topic, title, extra=None):
-    d = hist_load()
     e = {"date": now().strftime("%Y-%m-%d %H:%M"), "topic": topic, "title": title}
     if extra:
         e.update(extra)
-    d.append(e)
-    HISTORY_FILE.write_text(json.dumps(d[-400:], ensure_ascii=False, indent=2),
+    if gh_bor():
+        try:
+            d, sha = _gh_json_oqi("history.json", [])
+            if not isinstance(d, list):
+                d = []
+            d = (d + [e])[-400:]
+            _gh_json_yoz("history.json", d, f"tarix: {topic}", sha=sha)
+            _HIST_KESH[0], _HIST_KESH[1] = time.time(), d
+            return
+        except Exception as ex:
+            log(f"[tarix] GitHub'ga yozilmadi, lokalga yozaman: {ex}")
+    d = (_hist_lokal() + [e])[-400:]
+    HISTORY_FILE.write_text(json.dumps(d, ensure_ascii=False, indent=2),
                             encoding="utf-8")
+    _HIST_KESH[0], _HIST_KESH[1] = time.time(), d
 
 
 def hist_last():
@@ -485,14 +520,32 @@ def hist_last():
 
 def hist_remove(entry):
     """Bitta tarix yozuvini o'chirib qolganini qaytaradi."""
-    d = hist_load()
+    sha = None
+    if gh_bor():
+        try:
+            d, sha = _gh_json_oqi("history.json", [])
+            if not isinstance(d, list):
+                d = _hist_lokal()
+        except Exception as e:
+            log(f"[tarix] o'qilmadi: {e}")
+            d = _hist_lokal()
+    else:
+        d = _hist_lokal()
     for i in range(len(d) - 1, -1, -1):
         if d[i].get("date") == entry.get("date") and \
                 d[i].get("message_id") == entry.get("message_id"):
             d.pop(i)
             break
+    if gh_bor():
+        try:
+            _gh_json_yoz("history.json", d, "tarix: yozuv o'chirildi", sha=sha)
+            _HIST_KESH[0], _HIST_KESH[1] = time.time(), d
+            return d
+        except Exception as e:
+            log(f"[tarix] GitHub'ga yozilmadi: {e}")
     HISTORY_FILE.write_text(json.dumps(d, ensure_ascii=False, indent=2),
                             encoding="utf-8")
+    _HIST_KESH[0], _HIST_KESH[1] = time.time(), d
     return d
 
 
@@ -2103,6 +2156,100 @@ def imzo_qosh(text, post=None):
     return text
 
 
+_OCHIQ_TEG_RE = re.compile(r"<(/?)([a-zA-Z][a-zA-Z0-9]*)[^>]*>")
+_BOSH_YOPILMAS = ("br", "hr", "img")
+
+
+def _caption_kes(matn, limit=CAPTION_LIMIT):
+    """Captionni HTML tegini buzmasdan qisqartiradi. Oddiy kesish
+    tegning o'rtasidan bo'lib, Telegram BUTUN postni rad etar edi."""
+    matn = matn or ""
+    if len(matn) <= limit:
+        return matn
+    kes = matn[:limit]
+    if kes.rfind("<") > kes.rfind(">"):
+        kes = kes[:kes.rfind("<")]
+    stek = []
+    for m in _OCHIQ_TEG_RE.finditer(kes):
+        yopuv, nom = m.group(1), m.group(2).lower()
+        if yopuv:
+            if stek and stek[-1] == nom:
+                stek.pop()
+        elif nom not in _BOSH_YOPILMAS:
+            stek.append(nom)
+    for nom in reversed(stek):
+        kes += f"</{nom}>"
+    return kes
+
+
+def _maxsus_royxat_oqi():
+    """maxsus_postlar.json ni (GitHub yoki lokal) o'qiydi → (royxat, sha)."""
+    if gh_bor():
+        matn, sha = gh_oqi("maxsus_postlar.json")
+        royxat = json.loads(matn) if matn else []
+        return (royxat if isinstance(royxat, list) else []), sha
+    if MAXSUS_POST_FAYL.exists():
+        royxat = json.loads(MAXSUS_POST_FAYL.read_text(encoding="utf-8"))
+        return (royxat if isinstance(royxat, list) else []), None
+    return [], None
+
+
+def _maxsus_royxat_yoz(royxat, sha, izoh):
+    """Ro'yxatni qaytib yozadi. sha berilsa — optimistic lock (band qilish)."""
+    yangi = json.dumps(royxat, ensure_ascii=False, indent=2)
+    if gh_bor():
+        gh_yoz("maxsus_postlar.json", yangi, izoh, sha=sha)
+    else:
+        MAXSUS_POST_FAYL.write_text(yangi, encoding="utf-8")
+
+
+def _maxsus_yozuvni_ozgartir(idx, **maydonlar):
+    """Bitta yozuvni yangi holatdan o'qib turib o'zgartiradi.
+    Qaytaradi: o'zgartirilgan yozuv yoki None."""
+    royxat, sha = _maxsus_royxat_oqi()
+    try:
+        idx = int(idx)
+    except (TypeError, ValueError):
+        return None
+    if not (0 <= idx < len(royxat)) or not isinstance(royxat[idx], dict):
+        return None
+    royxat[idx] = dict(royxat[idx], **maydonlar)
+    _maxsus_royxat_yoz(royxat, sha,
+                       f"maxsus: {royxat[idx].get('fayl', '')} yangilandi")
+    return royxat[idx]
+
+
+def _maxsus_ruxsat_sora(royxat, idx, sha, gh):
+    """Vaqti belgilanmagan maxsus post uchun admindan ruxsat so'raydi.
+    So'ralganini `soralgan: true` bilan sha-lock orqali band qiladi —
+    ikkinchi jarayon shu yozuv uchun qayta so'ramaydi."""
+    item = royxat[idx]
+    royxat[idx] = dict(item, soralgan=True)
+    try:
+        _maxsus_royxat_yoz(royxat, sha,
+                           f"maxsus: {item.get('fayl', '')} — ruxsat so'raldi")
+    except Exception as e:
+        log(f"[maxsus] so'rashni band qilib bo'lmadi: {e}")
+        return
+    matn = (item.get("caption") or "").strip()
+    try:
+        tg_msg(TELEGRAM_ADMIN_ID,
+               "🔔 <b>Ruxsat so'rayman — bu post hali kelishilmagan</b>\n\n"
+               f"📄 <code>{html.escape(item.get('fayl', ''))}</code>\n"
+               f"🗓 {html.escape(item.get('sana', ''))} · vaqti belgilanmagan\n\n"
+               f"<b>Matn:</b>\n{html.escape(matn[:700])}"
+               f"{'…' if len(matn) > 700 else ''}\n\n"
+               "Tugmani bosmagunimcha kanalga hech narsa chiqmaydi.",
+               markup={"inline_keyboard": [[
+                   {"text": "✅ Hozir chiqar", "callback_data": f"mxsha:{idx}"},
+                   {"text": "⏰ Boshqa vaqtga qo'y", "callback_data": f"mxskech:{idx}"},
+               ], [
+                   {"text": "❌ Bekor qil", "callback_data": f"mxsyoq:{idx}"},
+               ]]})
+    except Exception as e:
+        log(f"[maxsus] ruxsat so'rovi yuborilmadi: {e}")
+
+
 def maxsus_postlarni_tekshir():
     """maxsus_postlar.json ichidagi oldindan tayyorlangan fayllarni
     (bepul qo'llanmalar, admin yuborgan fayllar) o'z sanasi/vaqtida
@@ -2145,19 +2292,33 @@ def maxsus_postlarni_tekshir():
     bugun = hozir.strftime("%Y-%m-%d")
     hh_mm = hozir.strftime("%H:%M")
 
+    # ── Nomzodni tanlash ──────────────────────────────────────────
+    # QOIDA (foydalanuvchi belgilagan): haftalik belgilangan fayllar
+    # so'ramasdan chiqaveradi — ya'ni yozuvda aniq VAQT bo'lsa yoki
+    # `tasdiqsiz: true` bo'lsa. Vaqti belgilanmaganlari esa RUXSAT
+    # SO'RAMASDAN kanalga chiqmaydi.
     nomzod_idx = None
+    sorash_idx = None
+    tasdiq_kerak = _ha("maxsus_tasdiq", "ha")
     for i, item in enumerate(royxat):
-        if not isinstance(item, dict) or item.get("yuborilgan"):
+        if not isinstance(item, dict) or item.get("yuborilgan") or item.get("bekor"):
             continue
-        sana = item.get("sana") or "9999-99-99"
-        if sana > bugun:
+        sana = (item.get("sana") or "").strip()
+        if not sana or sana > bugun:
             continue
         vaqt = (item.get("vaqt") or "").strip()
         if sana == bugun and vaqt and vaqt > hh_mm:
             continue  # bugun, lekin belgilangan vaqti hali kelmagan
-        nomzod_idx = i
-        break
+        kelishilgan = bool(vaqt) or bool(item.get("tasdiqsiz"))
+        if kelishilgan or not tasdiq_kerak:
+            nomzod_idx = i
+            break
+        if sorash_idx is None and not item.get("soralgan"):
+            sorash_idx = i
+
     if nomzod_idx is None:
+        if sorash_idx is not None:
+            _maxsus_ruxsat_sora(royxat, sorash_idx, sha, gh)
         return
 
     item = royxat[nomzod_idx]
@@ -2165,16 +2326,28 @@ def maxsus_postlarni_tekshir():
 
     # ── Band qilishga urinamiz ────────────────────────────────────
     try:
-        yangi_matn = json.dumps(royxat, ensure_ascii=False, indent=2)
-        if gh:
-            gh_yoz("maxsus_postlar.json", yangi_matn,
-                   f"maxsus: {item.get('fayl', '')} band qilindi", sha=sha)
-        else:
-            MAXSUS_POST_FAYL.write_text(yangi_matn, encoding="utf-8")
+        _maxsus_royxat_yoz(royxat, sha,
+                           f"maxsus: {item.get('fayl', '')} band qilindi")
     except Exception as e:
         log(f"[maxsus] band qilib bo'lmadi — ehtimol boshqa jarayon "
             f"ulgurgan: {e}")
         return  # yubormaymiz — xavfsizroq tomoni
+
+    def _bandni_qaytar(sabab):
+        """Yuborish amalga oshmadi — yozuvni qaytadan navbatga qo'yamiz,
+        aks holda post BUTUNLAY chiqmay qolardi."""
+        try:
+            urinish = int(item.get("urinish") or 0) + 1
+            if urinish >= 3:
+                _maxsus_yozuvni_ozgartir(nomzod_idx, urinish=urinish,
+                                         yuborilgan=True, bekor=True)
+                log(f"[maxsus] 3 marta urinildi, to'xtatildi: {sabab}")
+            else:
+                _maxsus_yozuvni_ozgartir(nomzod_idx, urinish=urinish,
+                                         yuborilgan=False)
+                log(f"[maxsus] navbatga qaytarildi ({urinish}/3): {sabab}")
+        except Exception as e2:
+            log(f"[maxsus] qaytarib bo'lmadi: {e2}")
 
     # ── Band qildik — endi xotirjam yuboramiz ───────────────────────
     yol = ROOT / item.get("fayl", "")
@@ -2192,6 +2365,7 @@ def maxsus_postlarni_tekshir():
 
     if not yol.exists():
         log(f"[maxsus] fayl topilmadi: {yol}")
+        _bandni_qaytar("fayl topilmadi")
         try:
             tg_msg(TELEGRAM_ADMIN_ID,
                    f"❌ Maxsus post chiqmadi — fayl topilmadi: {item.get('fayl')}")
@@ -2200,15 +2374,22 @@ def maxsus_postlarni_tekshir():
         return
 
     try:
-        caption_matn = imzo_qosh(item.get("caption", ""))
-        if len(caption_matn) > CAPTION_LIMIT:
-            caption_matn = caption_matn[:CAPTION_LIMIT]
+        caption_matn = _caption_kes(imzo_qosh(item.get("caption", "")))
         with open(yol, "rb") as f:
-            tg_call("sendDocument",
-                    data={"chat_id": TELEGRAM_CHANNEL, "parse_mode": "HTML",
-                          "caption": caption_matn},
-                    files={"document": f}, timeout=180)
-        log(f"[maxsus] kanalga yuborildi: {item.get('fayl')}")
+            javob = tg_call("sendDocument",
+                            data={"chat_id": TELEGRAM_CHANNEL,
+                                  "parse_mode": "HTML",
+                                  "caption": caption_matn},
+                            files={"document": f}, timeout=180)
+        mid = (javob or {}).get("message_id")
+        log(f"[maxsus] kanalga yuborildi: {item.get('fayl')} (id={mid})")
+        # Tarixga yozamiz — shunda admin "oxirgi postni o'chir" desa,
+        # bot maxsus faylni ham o'chira oladi.
+        try:
+            hist_add("maxsus", item.get("fayl", ""),
+                     {"message_id": mid, "maxsus_idx": nomzod_idx})
+        except Exception as e:
+            log(f"[maxsus] tarixga yozilmadi: {e}")
         try:
             tg_msg(TELEGRAM_ADMIN_ID,
                    f"✅ <b>Maxsus post kanalga chiqdi</b>\n\n📄 {item.get('fayl')}\n"
@@ -2217,10 +2398,12 @@ def maxsus_postlarni_tekshir():
             log(f"[maxsus] admin xabari yuborilmadi: {e}")
     except Exception as e:
         log(f"[maxsus] yuborishda xato ({item.get('fayl')}): {e}")
+        _bandni_qaytar(str(e)[:120])
         try:
             tg_msg(TELEGRAM_ADMIN_ID,
                    f"❌ Maxsus post chiqmadi: {item.get('fayl')}\n"
-                   f"<code>{str(e)[:300]}</code>")
+                   f"<code>{html.escape(str(e)[:300])}</code>\n"
+                   f"Keyingi tekshiruvda qayta urinaman.")
         except Exception:
             pass
 
@@ -2265,6 +2448,78 @@ def _gh_json_yoz(yol, obj, izoh, sha="__oqi__"):
     (ROOT / yol).write_text(matn, encoding="utf-8")
     if gh_bor():
         gh_yoz(yol, matn, izoh, sha=sha)
+
+
+# ── AUDITORIYA: odamlar botga nima yozayotgani ────────────────────
+# MAXFIYLIK: repo ochiq bo'lgani uchun bu yerga ism ham, Telegram ID
+# ham YOZILMAYDI — faqat qaytarilmas qisqa xesh saqlanadi. Maqsad —
+# o'sish maslahatchisiga "odamlar O'Z SO'ZLARI bilan nima so'rayapti"
+# ni ko'rsatish, odamni tanish emas.
+AUDITORIYA_FAYL = "auditoriya.json"
+_AUD_BUF = []          # hali yozilmagan yozuvlar
+_AUD_VAQT = [0.0]      # oxirgi saqlash vaqti
+_AUD_ORALIQ = 300      # 5 daqiqada bir marta yoziladi
+
+
+def _uid_xesh(uid):
+    return hashlib.sha256(f"aqlustaxona:{uid}".encode("utf-8")).hexdigest()[:10]
+
+
+def auditoriya_yoz(uid, matn, til="", majburiy=False):
+    """Odam botga yozgan gapni navbatga qo'yadi va vaqti kelsa saqlaydi."""
+    matn = (matn or "").strip()
+    if matn and not matn.startswith("/"):
+        _AUD_BUF.append({
+            "kim": _uid_xesh(uid),
+            "vaqt": now().strftime("%Y-%m-%d %H:%M"),
+            "matn": matn[:300],
+            "til": (til or "")[:8],
+        })
+    if not _AUD_BUF:
+        return
+    if not majburiy and (time.time() - _AUD_VAQT[0]) < _AUD_ORALIQ:
+        return
+    _AUD_VAQT[0] = time.time()
+    try:
+        eski, sha = _gh_json_oqi(AUDITORIYA_FAYL, [])
+        if not isinstance(eski, list):
+            eski = []
+        eski.extend(_AUD_BUF)
+        _gh_json_yoz(AUDITORIYA_FAYL, eski[-500:],
+                     f"auditoriya: +{len(_AUD_BUF)} yozuv", sha=sha)
+        _AUD_BUF.clear()
+    except Exception as e:
+        log(f"[auditoriya] saqlanmadi: {e}")
+
+
+def auditoriya_profil():
+    """O'sish maslahatchisi uchun auditoriya qisqacha portreti."""
+    qatorlar = []
+    try:
+        d = obunachilar() or {}
+        jami = len(d)
+        dost = sum(1 for v in d.values() if (v or {}).get("kelgan"))
+        olgan = sum(1 for v in d.values() if (v or {}).get("olgan"))
+        qatorlar.append(f"- Botga yozilganlar: {jami} ta "
+                        f"(do'st taklifi orqali {dost} ta, "
+                        f"bepul qo'llanma olgan {olgan} ta)")
+    except Exception as e:
+        log(f"[auditoriya] obunachilar o'qilmadi: {e}")
+    try:
+        yozuvlar, _ = _gh_json_oqi(AUDITORIYA_FAYL, [])
+        yozuvlar = (yozuvlar if isinstance(yozuvlar, list) else []) + _AUD_BUF
+        if yozuvlar:
+            kishilar = len({y.get("kim") for y in yozuvlar if isinstance(y, dict)})
+            qatorlar.append(f"- Botga savol yozganlar: {kishilar} xil odam, "
+                            f"jami {len(yozuvlar)} ta xabar")
+            oxirgi = [str((y or {}).get("matn", "")).strip()
+                      for y in yozuvlar[-25:] if (y or {}).get("matn")]
+            if oxirgi:
+                qatorlar.append("- ODAMLARNING O'Z SO'ZLARI (oxirgi savollari):")
+                qatorlar += [f"  · {m[:160]}" for m in oxirgi]
+    except Exception as e:
+        log(f"[auditoriya] yozuvlar o'qilmadi: {e}")
+    return "\n".join(qatorlar) or "(auditoriya haqida ma'lumot hali yig'ilmagan)"
 
 
 def kanal_azo_soni():
@@ -2357,7 +2612,7 @@ def statistika_tahlil(kunlar=None):
             "eng_yaxshi": eng_yaxshi, "eng_yomon": eng_yomon}
 
 
-TAKLIF_AMALLAR = ("post", "sorovnoma", "pin", "jadval", "qolda")
+TAKLIF_AMALLAR = ("post", "sorovnoma", "rasm", "pin", "jadval", "qolda")
 
 # Kunlik o'sish tahlili — bu kuniga BIR MARTA bo'ladigan, eng muhim
 # "o'ylash" ishi. Shuning uchun kuchliroq modeldan boshlaymiz; topilmasa
@@ -2371,6 +2626,11 @@ def osish_takliflari(tahlil):
     Google qidiruvi yoqilgan — jahon va O'zbekiston tendensiyalaridan
     foydalanadi. Qaytaradi ro'yxat (bo'sh bo'lishi mumkin)."""
     oxirgi_postlar = ", ".join(hist_topics(12)) or "(hali yo'q)"
+    try:
+        auditoriya = auditoriya_profil()
+    except Exception as e:
+        log(f"[osish] auditoriya profili olinmadi: {e}")
+        auditoriya = "(ma'lumot yo'q)"
     prompt = f"""{BOT_KONTEKST.strip()}
 
 Sen shu Telegram kanalining O'SISH BO'YICHA MASLAHATCHISISAN.
@@ -2379,6 +2639,9 @@ jalb qiladigan aniq harakatlar taklif qilish.
 
 KANALNING HOZIRGI HOLATI (o'zim o'lchadim):
 {tahlil['matn']}
+
+AUDITORIYA (kim o'qiyapti va nima so'rayapti):
+{auditoriya}
 
 Oxirgi chiqqan post mavzulari: {oxirgi_postlar}
 
@@ -2429,13 +2692,28 @@ Har bir taklif uchun "amal" turini tanla:
 - "post" — kanalga qo'shimcha jalb qiluvchi post chiqarish
   (savol, muhokama, foydali ro'yxat). "matn" to'ldir — TO'LIQ tayyor
   post matni, 300-700 belgi, o'zbek tilida.
+- "rasm" — mavzuga mos rasm chizib, matn bilan kanalga chiqarish.
+  "matn" — post matni, "savol" — rasm uchun qisqa ingliz tilidagi
+  tasvir (masalan "3d isometric illustration of a small team
+  celebrating first sale, warm light").
 - "pin" — muhim xabarni kanal tepasiga qadab qo'yish. "matn" to'ldir.
 - "jadval" — rejalashtirilgan fayl-postlar vaqtini o'zgartirish.
 - "qolda" — bot o'zi bajara olmaydigan, admin qo'li bilan qilinadigan ish
   (masalan boshqa kanal bilan kelishuv). Bunda "matn" — aniq yo'riqnoma.
 
-Kamida BITTASI "sorovnoma" yoki "post" bo'lsin — ya'ni bot o'zi
-darhol bajara oladigan ish.
+Kamida BITTASI "sorovnoma", "post" yoki "rasm" bo'lsin — ya'ni bot
+o'zi darhol bajara oladigan ish.
+
+QO'SHIMCHA FORMATLAR — taklif "post" turida bo'lsa, quyidagilardan
+biri bo'lishi ham mumkin (matnini TO'LIQ yozib ber):
+- BEPUL PDF (lead magnet) — odam botga yozishga majbur qiladigan
+  qisqa qo'llanma e'loni. Nima va'da qilinishini aniq yoz.
+- INSTAGRAM KARUSEL — slayd-ma-slayd matn (1-slayd: ilgak,
+  2-6: mazmun, oxirgi: harakatga chaqiruv).
+- REELS SSENARIYSI — sahna-ma-sahna (0-3 s ilgak, keyin nima
+  ko'rsatiladi, oxirida CTA).
+Har bir bunday taklif ham RAQAM yoki auditoriyaning O'Z SO'ZI bilan
+asoslanishi SHART — "shunchaki foydali bo'ladi" degani yaramaydi.
 
 FAQAT shu JSON'ni qaytar:
 {{"tahlil": "2-3 jumlada: raqamlar nimani ko'rsatyapti va nega shu takliflar",
@@ -2478,8 +2756,8 @@ O'zbek tilida, lotin yozuvida yoz."""
     return clean(d.get("tahlil", ""))[:600], takliflar, ogoh
 
 
-_TAKLIF_BELGI = {"post": "📝", "sorovnoma": "📊", "pin": "📌",
-                 "jadval": "🗓", "qolda": "✋"}
+_TAKLIF_BELGI = {"post": "📝", "sorovnoma": "📊", "rasm": "🖼",
+                 "pin": "📌", "jadval": "🗓", "qolda": "✋"}
 
 
 def takliflarni_korsat(paket=None):
@@ -2595,6 +2873,32 @@ def taklifni_bajar(nomer):
                 raise RuntimeError("post matni bo'sh")
             tg_msg(TELEGRAM_CHANNEL, matn[:MESSAGE_LIMIT])
             natija = "Post kanalga chiqdi."
+        elif amal == "rasm":
+            matn = imzo_qosh(t.get("matn", ""))
+            if not matn.strip():
+                raise RuntimeError("post matni bo'sh")
+            tasvir = (t.get("savol") or t.get("nom") or "").strip()
+            yol = ROOT / "taklif_rasm.png"
+            chizildi = False
+            for chiz in (gem_image, bepul_rasm):
+                try:
+                    chiz(flux_prompt(tasvir), yol)
+                    chizildi = yol.exists()
+                    if chizildi:
+                        break
+                except Exception as e:
+                    log(f"[osish] rasm chizilmadi ({chiz.__name__}): {e}")
+            if chizildi:
+                tg_photo(TELEGRAM_CHANNEL, yol,
+                         caption=_caption_kes(matn))
+                natija = "Rasm va post kanalga chiqdi."
+                try:
+                    yol.unlink()
+                except Exception:
+                    pass
+            else:
+                tg_msg(TELEGRAM_CHANNEL, matn[:MESSAGE_LIMIT])
+                natija = "Rasm chizilmadi — post rasmsiz chiqdi."
         elif amal == "pin":
             matn = t.get("matn", "").strip()
             if not matn:
@@ -3536,6 +3840,7 @@ _TARIX = []            # [(kim, matn)] — oxirgi 10 ta
 _KUTILMOQDA = [None]   # {"amal", "raqam", "savol"} — so'ralgan aniqlik
 _KUT_FAYL = [None]     # admin fayl yubordi, vaqtini kutyapmiz: {"fayl", "asl_caption"}
 _MAXSUS_TEKSHIR_VAQT = [0.0]   # listen() ichida davriy tekshiruv — throttle
+_KUT_MAXSUS = [None]   # "boshqa vaqtga qo'y" bosildi — yangi vaqt kutilyapti
 
 
 def _tarix_qosh(kim, matn):
@@ -4012,6 +4317,39 @@ def tugmani_ishla(cq):
             _javob_ber(f"Bajarolmadim: <code>{str(e)[:300]}</code>")
         return
 
+    # ── Maxsus post uchun ruxsat tugmalari ──────────────────────
+    # Bu yozuvlar boshqa jarayonda tayyorlangan bo'lishi mumkin,
+    # shuning uchun _PENDING'ga emas, maxsus_postlar.json'ga tayanamiz.
+    if amal in ("mxsha", "mxskech", "mxsyoq"):
+        if mid:
+            tg_clear_markup(TELEGRAM_ADMIN_ID, mid)
+        try:
+            if amal == "mxsha":
+                tg_answer(cq["id"], "Chiqarilmoqda...")
+                yozuv = _maxsus_yozuvni_ozgartir(
+                    tok, tasdiqsiz=True, soralgan=False,
+                    sana=now().strftime("%Y-%m-%d"), vaqt="")
+                if not yozuv:
+                    _javob_ber("Bu yozuv topilmadi — ehtimol o'chirilgan.")
+                    return
+                maxsus_postlarni_tekshir()
+            elif amal == "mxskech":
+                tg_answer(cq["id"], "Aytavering")
+                _KUT_MAXSUS[0] = tok
+                _javob_ber("⏰ Qachon chiqsin? Oddiy gap bilan yozing — "
+                           "masalan: <code>ertaga soat 9 da</code>, "
+                           "<code>27-avgust kechqurun</code> yoki "
+                           "<code>27.08 14:00</code>.")
+            else:
+                tg_answer(cq["id"], "Bekor qilindi")
+                _maxsus_yozuvni_ozgartir(tok, bekor=True, yuborilgan=True,
+                                         soralgan=False)
+                _javob_ber("❌ Bekor qilindi — bu fayl kanalga chiqmaydi.")
+        except Exception as e:
+            log(f"[maxsus] tugma xatosi: {e}")
+            _javob_ber(f"Bajarolmadim: <code>{html.escape(str(e)[:300])}</code>")
+        return
+
     # ── Haftalik 7 kunlik tasdiq ────────────────────────────────
     if amal in ("hafta", "haftayoq"):
         if mid:
@@ -4313,34 +4651,238 @@ def mehmon_maslahat(uid, matn):
         return False
 
 
-# ── Admin fayl yuborsa — aniq vaqtda kanalga chiqarish ────────────
-_SANA_VAQT_RE = re.compile(
-    r"^\s*(?:(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?\s+)?(\d{1,2}):(\d{2})\s*\n?(.*)$",
-    re.DOTALL)
+# ── Vaqtni ODAM TILIDA tushunish ──────────────────────────────────
+# Eski versiya faqat "DD.MM HH:MM" ni, faqat matn BOSHIDA tanirdi.
+# Shuning uchun "ertaga soat 9 da chiqar" kabi oddiy gapda vaqt
+# umuman topilmasdi va post ixtiyoriy paytda chiqib ketardi.
+
+_OYLAR = {
+    "yanvar": 1, "fevral": 2, "mart": 3, "aprel": 4, "may": 5,
+    "iyun": 6, "iyul": 7, "avgust": 8, "sentabr": 9, "sentyabr": 9,
+    "oktabr": 10, "oktyabr": 10, "noyabr": 11, "dekabr": 12,
+}
+
+# Kun so'zlari → bugundan necha kun keyin. Uzunroq so'z birinchi
+# tekshirilishi shart ("ertadan keyin" ni "ertaga" yeb qo'ymasin).
+_KUN_SOZLARI = {
+    "ertadan keyin": 2, "ertangi kundan keyin": 2,
+    "indinga": 2, "indin": 2,
+    "ertaga": 1, "ertangi kun": 1, "ertagi": 1,
+    "bugun": 0, "bugungi": 0,
+}
+
+# Kun qismi so'zlari → standart soat
+_QISM_SOZLARI = {
+    "kechqurun": 19, "kechga": 19, "kechki": 19, "kech": 19,
+    "kechasi": 21, "kechda": 21,
+    "tunda": 22, "tungi": 22, "tun": 22,
+    "ertalab": 9, "ertalabki": 9, "ertalabdan": 9,
+    "tongda": 8, "tonggi": 8, "saharda": 8,
+    "peshin": 13, "peshinda": 13, "tushda": 13, "tushlik": 13,
+    "kunduzi": 12, "kunduz": 12,
+}
+# Kechki so'zlar — ular bilan kelgan 1..11 soat +12 qilinadi
+_KECHKI = {"kechqurun", "kechga", "kechki", "kech", "kechasi", "kechda",
+           "tunda", "tungi", "tun", "peshin", "peshinda", "tushda", "tushlik"}
+
+# Vaqt aytilgach caption'ga tushib qolmasligi kerak bo'lgan qoldiq so'zlar
+_BUYRUQ_QOLDIQ = {
+    "chiqar", "chiqarib", "chiqarsin", "chiqsin", "yubor", "yuboring",
+    "yuborsin", "qoy", "qo'y", "qoysin", "qo'ysin", "joyla", "joylashtir",
+    "post", "qil", "qilib", "buni", "shuni", "uni", "bu", "shu",
+    "faylni", "fayl", "da", "gacha", "soat", "iltimos", "keyin", "endi",
+    "please", "ok", "mayli", "kanalga", "kanal", "ga",
+}
+
+
+def _soz_re(sozlar):
+    """So'zlar ro'yxatidan so'z-chegarali regex — uzunroq so'z birinchi."""
+    tartib = sorted(sozlar, key=len, reverse=True)
+    return re.compile(r"(?<![a-z0-9'])(" + "|".join(map(re.escape, tartib)) +
+                      r")(?![a-z0-9'])")
+
+
+_KUN_RE = _soz_re(_KUN_SOZLARI)
+_QISM_RE = _soz_re(_QISM_SOZLARI)
+_VAQT_HHMM_RE = re.compile(r"(?<![\d.])(\d{1,2})[:.](\d{2})(?![\d.])")
+_SOAT_RE = re.compile(r"\bsoat\s*(\d{1,2})(?:\s*(?:da|larda))?\b")
+_RAQAM_DA_RE = re.compile(r"(?<![\d.])(\d{1,2})\s*(?:da|larda)\b")
+_DDMM_RE = re.compile(r"(?<![\d.])(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?(?![\d])")
+_OY_NOM_RE = re.compile(
+    r"(?<![\d.])(\d{1,2})\s*[-–\s]?\s*(" +
+    "|".join(sorted(_OYLAR, key=len, reverse=True)) + r")\w*")
+
+
+def _qoldiqni_tozala(matn):
+    """Vaqt/sana olib tashlangach qolgan buyruq so'zlarini tozalaydi.
+    Agar qolgani faqat buyruq so'zlaridan iborat bo'lsa — bo'sh satr
+    qaytaradi (aks holda ular caption bo'lib kanalga chiqib ketardi)."""
+    t = (matn or "").strip(" .,;:!-–—\n\t")
+    if not t:
+        return ""
+    sozlar = [w for w in re.split(r"[\s,.;:!?]+", t.lower()) if w]
+    if sozlar and all(w in _BUYRUQ_QOLDIQ for w in sozlar):
+        return ""
+
+    # Caption odatda yangi qatordan boshlanadi — birinchi qator faqat
+    # buyruq so'zlaridan iborat bo'lsa, uni tashlab yuboramiz.
+    if "\n" in t:
+        birinchi, qolgani = t.split("\n", 1)
+        b_sozlar = [w for w in re.split(r"[\s,.;:!?]+", birinchi.lower()) if w]
+        if b_sozlar and all(w in _BUYRUQ_QOLDIQ for w in b_sozlar):
+            t = qolgani.strip()
+
+    # Boshidagi kichik harfli buyruq so'zlarini olib tashlaymiz
+    # ("chiqar Salom dunyo" → "Salom dunyo"). Bosh harfli so'z tegilmaydi —
+    # u caption'ning o'z boshlanishi bo'lishi mumkin.
+    while True:
+        m = re.match(r"([^\s,.;:!?]+)[\s,.;:!?]+(.+)", t, re.DOTALL)
+        if not m:
+            break
+        soz = m.group(1)
+        if soz == soz.lower() and soz.lower() in _BUYRUQ_QOLDIQ:
+            t = m.group(2).strip()
+            continue
+        break
+    return re.sub(r"[ \t]+", " ", t).strip(" .,;:!-–—\n\t")
+
+
+def _qoplanadimi(m, oraliqlar):
+    return any(not (m.end() <= a or m.start() >= b) for a, b in oraliqlar)
+
+
+def _vaqtni_tushun(matn):
+    """Erkin o'zbekcha gapdan sana va vaqtni ajratadi.
+
+    Tushunadi: "09:00", "soat 9", "9 da", "ertaga soat 9 da",
+    "27.08 14:00", "27-avgust kechqurun", "indinga ertalab",
+    "kechqurun soat 9" (→ 21:00) va shunga o'xshashlar.
+
+    Qaytaradi (sana|None, vaqt|None, qolgan_matn)."""
+    asl = (matn or "").strip()
+    if not asl:
+        return None, None, ""
+    t = (asl.lower().replace("ʼ", "'").replace("’", "'")
+         .replace("`", "'").replace("ʻ", "'"))
+
+    kesish = []          # (boshi, oxiri) — caption'dan olib tashlanadi
+    soat = daqiqa = None
+    kun_ofset = None
+    sana_dt = None
+    kechki_soz = False
+
+    # ── 1) Aniq sana: 27.08 / 27.08.2026 ──────────────────────────
+    for m in _DDMM_RE.finditer(t):
+        try:
+            kun_i, oy_i = int(m.group(1)), int(m.group(2))
+        except ValueError:
+            continue
+        if not (1 <= oy_i <= 12 and 1 <= kun_i <= 31):
+            continue
+        yil = m.group(3)
+        try:
+            yil_i = int(yil) if yil else now().year
+            if yil_i < 100:
+                yil_i += 2000
+            d = datetime(yil_i, oy_i, kun_i).date()
+            if not yil and d < now().date():
+                d = datetime(yil_i + 1, oy_i, kun_i).date()
+        except ValueError:
+            continue
+        sana_dt = d
+        kesish.append((m.start(), m.end()))
+        break
+
+    # ── 2) Oy nomi bilan: 27-avgust / 1 sentabr ───────────────────
+    if sana_dt is None:
+        m = _OY_NOM_RE.search(t)
+        if m:
+            try:
+                kun_i = int(m.group(1))
+                oy_i = _OYLAR[m.group(2)]
+                d = datetime(now().year, oy_i, kun_i).date()
+                if d < now().date():
+                    d = datetime(now().year + 1, oy_i, kun_i).date()
+                sana_dt = d
+                kesish.append((m.start(), m.end()))
+            except (ValueError, KeyError):
+                pass
+
+    # ── 3) Kun so'zlari: bugun / ertaga / indinga ─────────────────
+    if sana_dt is None:
+        m = _KUN_RE.search(t)
+        if m:
+            kun_ofset = _KUN_SOZLARI[m.group(1)]
+            kesish.append((m.start(), m.end()))
+
+    # ── 4) Aniq vaqt: 09:00 / 9.30 (sana bilan qoplanmagani) ──────
+    for m in _VAQT_HHMM_RE.finditer(t):
+        if _qoplanadimi(m, kesish):
+            continue
+        h, mi = int(m.group(1)), int(m.group(2))
+        if 0 <= h <= 23 and 0 <= mi <= 59:
+            soat, daqiqa = h, mi
+            kesish.append((m.start(), m.end()))
+            break
+
+    # ── 5) "soat 9" / "9 da" ──────────────────────────────────────
+    if soat is None:
+        for rx in (_SOAT_RE, _RAQAM_DA_RE):
+            for m in rx.finditer(t):
+                if _qoplanadimi(m, kesish):
+                    continue
+                h = int(m.group(1))
+                if 0 <= h <= 23:
+                    soat, daqiqa = h, 0
+                    kesish.append((m.start(), m.end()))
+                    break
+            if soat is not None:
+                break
+
+    # ── 6) Kun qismi: ertalab / kechqurun / peshin ... ────────────
+    for m in _QISM_RE.finditer(t):
+        if _qoplanadimi(m, kesish):
+            continue
+        soz = m.group(1)
+        kesish.append((m.start(), m.end()))
+        if soz in _KECHKI:
+            kechki_soz = True
+        if soat is None:
+            soat, daqiqa = _QISM_SOZLARI[soz], 0
+        break
+
+    # "kechqurun soat 9" → 21:00
+    if kechki_soz and soat is not None and 1 <= soat <= 11:
+        soat += 12
+
+    vaqt = None if soat is None else f"{soat:02d}:{(daqiqa or 0):02d}"
+
+    # ── Sanani hisoblash ──────────────────────────────────────────
+    sana = None
+    if sana_dt is not None:
+        sana = sana_dt.strftime("%Y-%m-%d")
+    elif kun_ofset is not None:
+        sana = (now() + timedelta(days=kun_ofset)).strftime("%Y-%m-%d")
+    elif vaqt:
+        # Sana aytilmadi: vaqt hali kelmagan bo'lsa bugun, aks holda ertaga
+        sana = now().strftime("%Y-%m-%d")
+        if vaqt <= now().strftime("%H:%M"):
+            sana = (now() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # ── Qolgan matn (caption) ─────────────────────────────────────
+    if kesish:
+        buf = list(asl)
+        for a, b in sorted(kesish, reverse=True):
+            buf[a:b] = " "
+        qolgan = "".join(buf)
+    else:
+        qolgan = asl
+    return sana, vaqt, _qoldiqni_tozala(qolgan)
 
 
 def _sana_vaqt_ajrat(matn):
-    """Matn boshidan ixtiyoriy '[DD.MM[.YYYY]] HH:MM' ni ajratadi.
-    Qaytaradi (sana yoki None, vaqt yoki None, qolgan_matn)."""
-    m = _SANA_VAQT_RE.match((matn or "").strip())
-    if not m:
-        return None, None, (matn or "").strip()
-    kun, oy, yil, hh, mm, qolgan = m.groups()
-    try:
-        vaqt = f"{int(hh):02d}:{int(mm):02d}"
-    except ValueError:
-        return None, None, (matn or "").strip()
-    sana = None
-    if kun and oy:
-        try:
-            yil_i = int(yil) if yil else now().year
-            sana_dt = datetime(yil_i, int(oy), int(kun)).date()
-            if not yil and sana_dt < now().date():
-                sana_dt = datetime(yil_i + 1, int(oy), int(kun)).date()
-            sana = sana_dt.strftime("%Y-%m-%d")
-        except ValueError:
-            sana = None
-    return sana, vaqt, (qolgan or "").strip()
+    """Eski nom — endi _vaqtni_tushun() ga yo'naltiriladi."""
+    return _vaqtni_tushun(matn)
 
 
 def _maxsus_royxatga_qosh(fayl, sana, vaqt, caption):
@@ -4355,8 +4897,11 @@ def _maxsus_royxatga_qosh(fayl, sana, vaqt, caption):
             sha = None
         if not isinstance(royxat, list):
             royxat = []
+        # `tasdiqsiz: True` — admin faylni o'zi yuborib vaqtini aytgan,
+        # ya'ni allaqachon rozi. Qayta ruxsat so'ralmaydi.
         royxat.append({"fayl": fayl, "sana": sana, "vaqt": vaqt,
-                        "caption": caption, "yuborilgan": False})
+                       "caption": caption, "yuborilgan": False,
+                       "tasdiqsiz": True})
         yangi = json.dumps(royxat, ensure_ascii=False, indent=2)
         if gh_bor():
             gh_yoz("maxsus_postlar.json", yangi,
@@ -4383,9 +4928,9 @@ def _fayl_jadval_yangila(fayl, sana, vaqt, caption):
     if not vaqt:
         _KUT_FAYL[0] = {"fayl": fayl, "sana": sana, "vaqt": vaqt, "caption": caption}
         tg_msg(TELEGRAM_ADMIN_ID,
-               "🕐 Qachon kanalga chiqsin? Vaqtni yozing, masalan:\n"
-               "<code>27.08 14:00</code>  yoki  faqat  <code>14:00</code> "
-               "(bugun/ertaga uchun)")
+               "🕐 Qachon kanalga chiqsin? Oddiy gap bilan yozing:\n"
+               "<code>ertaga soat 9 da</code> · <code>27-avgust kechqurun</code> · "
+               "<code>27.08 14:00</code> · <code>14:00</code>")
         return
     if not caption:
         _KUT_FAYL[0] = {"fayl": fayl, "sana": sana, "vaqt": vaqt, "caption": ""}
@@ -4453,6 +4998,11 @@ def mehmon_ishla(msg):
     ism = (frm.get("first_name") or "").strip() or frm.get("username") or ""
     matn = (msg.get("text") or "").strip()
     past = matn.lower()
+
+    try:
+        auditoriya_yoz(uid, matn, frm.get("language_code") or "")
+    except Exception as e:
+        log(f"[auditoriya] yozishda xato: {e}")
 
     if past.startswith("/start"):
         payload = matn[6:].strip()
@@ -4598,6 +5148,29 @@ def listen(minutes=340):
                 except Exception as e:
                     log(f"[maxsus] admin fayl xatosi: {e}")
                 continue
+            if _KUT_MAXSUS[0] is not None:
+                idx = _KUT_MAXSUS[0]
+                _KUT_MAXSUS[0] = None
+                sana, vaqt, _ = _vaqtni_tushun(msg.get("text", ""))
+                if not vaqt:
+                    _KUT_MAXSUS[0] = idx
+                    tg_msg(TELEGRAM_ADMIN_ID,
+                           "Vaqtni tushunmadim. Masalan: "
+                           "<code>ertaga soat 9 da</code>")
+                    continue
+                try:
+                    yozuv = _maxsus_yozuvni_ozgartir(
+                        idx, sana=sana or now().strftime("%Y-%m-%d"),
+                        vaqt=vaqt, soralgan=False, tasdiqsiz=True)
+                    if yozuv:
+                        tg_msg(TELEGRAM_ADMIN_ID,
+                               f"✅ Belgilandi: 🗓 {yozuv.get('sana')} · "
+                               f"🕐 {yozuv.get('vaqt')}\n📄 {yozuv.get('fayl')}")
+                    else:
+                        tg_msg(TELEGRAM_ADMIN_ID, "Bu yozuv topilmadi.")
+                except Exception as e:
+                    log(f"[maxsus] yangi vaqt xatosi: {e}")
+                continue
             if _KUT_FAYL[0] is not None:
                 sana, vaqt, qolgan = _sana_vaqt_ajrat(msg.get("text", ""))
                 try:
@@ -4617,6 +5190,10 @@ def listen(minutes=340):
             except Exception as e:
                 log(f"[maxsus] listen ichida xato: {e}")
     obuna_yoz(majburiy=True)
+    try:
+        auditoriya_yoz(0, "", majburiy=True)
+    except Exception as e:
+        log(f"[auditoriya] yakuniy saqlash: {e}")
     log("[listen] vaqt tugadi")
 
 
