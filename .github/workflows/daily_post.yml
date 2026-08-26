@@ -66,6 +66,9 @@ jobs:
 
       - run: pip install requests pillow
 
+      - name: Kod sintaksisini tekshirish
+        run: python -m py_compile bot.py
+
       - name: Postni yaratish va chiqarish
         env:
           TELEGRAM_BOT_TOKEN:  ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -135,11 +138,26 @@ jobs:
       - name: Holatni saqlash
         if: always()
         run: |
-          if [ -n "$(git status --porcelain history.json stories_state.json maxsus_postlar.json statistika.json takliflar.json)" ]; then
+          # history.json, maxsus_postlar.json, statistika.json,
+          # takliflar.json va auditoriya.json ni bot GitHub API orqali
+          # o'zi yozadi (sha bilan band qilib). Ularni bu yerda commit
+          # qilsak — API yozgan yangi holat ustiga eski nusxa tushib,
+          # yozuvlar jimgina yo'qolardi. Shuning uchun lokal nusxalarini
+          # tashlab yuboramiz va faqat stories_state.json ni saqlaymiz.
+          git checkout -- history.json maxsus_postlar.json statistika.json \
+                          takliflar.json auditoriya.json 2>/dev/null || true
+          if [ -n "$(git status --porcelain stories_state.json)" ]; then
             git config user.name  "aqlustaxona-bot"
             git config user.email "bot@users.noreply.github.com"
-            git add history.json stories_state.json maxsus_postlar.json statistika.json takliflar.json
+            git add stories_state.json
             git commit -m "chore: post tarixi $(date -u +%F)"
-            git pull --rebase --autostash || true
-            git push
+            for i in 1 2 3; do
+              if git pull --rebase --autostash && git push; then
+                exit 0
+              fi
+              echo "push urinishi $i muvaffaqiyatsiz, qayta urinaman..."
+              sleep 5
+            done
+            echo "::error::stories_state.json saqlanmadi — qo'lda tekshiring"
+            exit 1
           fi
