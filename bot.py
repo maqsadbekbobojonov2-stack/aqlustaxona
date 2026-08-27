@@ -3351,7 +3351,8 @@ def agent6_publish(post):
         tg_msg(TELEGRAM_ADMIN_ID, "ℹ️ <i>DRY_RUN yoqilgan — post kanalga chiqmadi.</i>")
         return
     mid = tg_send_post(TELEGRAM_CHANNEL, post)
-    extra = {"message_id": mid, "tur": post.get("source", "ai")}
+    extra = {"message_id": mid, "tur": post.get("source", "ai"),
+             "slot": SLOT}
     if post.get("source") == "stories":
         extra["day"] = post["day"]
         stories_mark_sent(post["day"], mid)
@@ -5147,6 +5148,22 @@ _QOROVUL_VAQT = [0.0]
 KUN_HOLAT_FAYL = "kun_holat.json"
 
 
+def _yozuv_sloti(e):
+    """Tarix yozuvi qaysi slotga tegishli. SOATGA QARAB ANIQLAMAYMIZ —
+    kechikib chiqqan ertalabki post (masalan 13:54 da) kechqurungi deb
+    hisoblanib, qorovul ikkinchi hikoyani chiqarib yuborgan edi.
+    Endi POST TURI hal qiladi: hikoya — ertalabki, kurs/yangilik —
+    kechqurungi. Yangi yozuvlarda `slot` maydoni ham bo'ladi."""
+    slot = (e.get("slot") or "").strip().lower()
+    if slot in ("ertalab", "kechqurun"):
+        return slot
+    if e.get("tur") == "stories" or e.get("day"):
+        return "ertalab"
+    if str(e.get("topic") or "").startswith("365-hikoya"):
+        return "ertalab"
+    return "kechqurun"
+
+
 def _bugungi_slotlar():
     """Bugun kanalga chiqqan postlar: (ertalab_chiqdimi, kechqurun_chiqdimi).
     Tarixni GitHub'dan YANGI holatda o'qiydi — boshqa jarayon chiqargan
@@ -5156,14 +5173,9 @@ def _bugungi_slotlar():
     for e in hist_load(yangila=True) or []:
         if not isinstance(e, dict) or e.get("topic") == "maxsus":
             continue
-        d = str(e.get("date") or "")
-        if not d.startswith(bugun) or len(d) < 13:
+        if not str(e.get("date") or "").startswith(bugun):
             continue
-        try:
-            soat = int(d[11:13])
-        except ValueError:
-            continue
-        if soat < 13:
+        if _yozuv_sloti(e) == "ertalab":
             ert = True
         else:
             kech = True
