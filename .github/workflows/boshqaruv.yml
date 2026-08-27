@@ -1,12 +1,16 @@
 name: Bot boshqaruvi
 
 # Telegram bot orqali kanalni boshqarish.
-# Har 6 soatda qayta ishga tushadi va 5 soat 40 daqiqa tinglaydi —
-# ya'ni deyarli uzluksiz ishlaydi. Ochiq repo uchun Actions bepul.
+# Har 3 soatda qayta ishga tushadi (cancel-in-progress bilan eskisini
+# almashtiradi) va 350 daqiqagacha tinglaydi — ya'ni deyarli uzluksiz.
+# Har 3 soatda qayta urinish MUHIM: GitHub cron'i kafolatlanmagan,
+# bitta jadval tashlab ketilsa keyingisi 3 soat ichida tiklaydi.
+# Tirik turgan jarayon kunlik postlar uchun QOROVUL vazifasini bajaradi.
+# Ochiq repo uchun Actions bepul.
 
 on:
   schedule:
-    - cron: "2 */6 * * *"
+    - cron: "2 */3 * * *"
   workflow_dispatch:
     inputs:
       minutes:
