@@ -5128,6 +5128,139 @@ def pin_post():
     return mid
 
 
+# ══════════════════════════════════════════════════════════════════
+#  QOROVUL — GitHub jadvali ishlamay qolsa ham postlar chiqadi
+# ══════════════════════════════════════════════════════════════════
+# GitHub Actions'ning cron jadvali KAFOLATLANMAGAN: yuklama ko'p
+# bo'lganda ishni kechiktiradi yoki umuman ishga tushirmaydi (2026-08-27
+# da aynan shunday bo'ldi — ertalabki post umuman chiqmadi va hech kim
+# xabar bermadi, chunki ishga tushmagan workflow hech narsa yozolmaydi).
+#
+# Yechim: soatlab tirik turadigan --listen jarayoni qorovul bo'ladi.
+# Har 5 daqiqada tekshiradi: belgilangan vaqtdan QOROVUL_KECHIKISH
+# daqiqa o'tgan bo'lsa-yu, o'sha slotda bugun post chiqmagan bo'lsa —
+# O'ZI chiqaradi va adminga xabar beradi.
+
+QOROVUL_KECHIKISH = 20          # daqiqa — cron'ga beriladigan muhlat
+QOROVUL_ORALIQ = 300            # tekshiruv oralig'i (soniya)
+_QOROVUL_VAQT = [0.0]
+KUN_HOLAT_FAYL = "kun_holat.json"
+
+
+def _bugungi_slotlar():
+    """Bugun kanalga chiqqan postlar: (ertalab_chiqdimi, kechqurun_chiqdimi).
+    Tarixni GitHub'dan YANGI holatda o'qiydi — boshqa jarayon chiqargan
+    postni ham ko'ramiz."""
+    bugun = now().strftime("%Y-%m-%d")
+    ert = kech = False
+    for e in hist_load(yangila=True) or []:
+        if not isinstance(e, dict) or e.get("topic") == "maxsus":
+            continue
+        d = str(e.get("date") or "")
+        if not d.startswith(bugun) or len(d) < 13:
+            continue
+        try:
+            soat = int(d[11:13])
+        except ValueError:
+            continue
+        if soat < 13:
+            ert = True
+        else:
+            kech = True
+    return ert, kech
+
+
+def _qorovul_band(kalit):
+    """Bir kunlik ishni band qiladi (sha-lock). Boshqa jarayon ulgurgan
+    bo'lsa — False qaytaradi va biz hech narsa qilmaymiz."""
+    bugun = now().strftime("%Y-%m-%d")
+    obj, sha = _gh_json_oqi(KUN_HOLAT_FAYL, {})
+    if not isinstance(obj, dict):
+        obj, sha = {}, sha
+    bandlar = list(obj.get(bugun) or [])
+    if kalit in bandlar:
+        return False
+    bandlar.append(kalit)
+    try:
+        _gh_json_yoz(KUN_HOLAT_FAYL, {bugun: bandlar},
+                     f"qorovul: {bugun} · {kalit}", sha=sha)
+    except Exception as e:
+        log(f"[qorovul] band qilib bo'lmadi ({kalit}): {e}")
+        return False
+    return True
+
+
+def _slot_vaqti(kalit):
+    if kalit == "ertalab":
+        return sozlama("ertalab_vaqt",
+                       (os.getenv("ERTALAB_VAQT") or "").strip() or "08:45")
+    return sozlama("kechqurun_vaqt",
+                   (os.getenv("KECHQURUN_VAQT") or "").strip() or "19:45")
+
+
+def _muddat_otdimi(vaqt, qoshimcha=QOROVUL_KECHIKISH):
+    try:
+        hh, mm = (int(x) for x in str(vaqt).split(":"))
+    except (ValueError, AttributeError):
+        return False
+    t = now()
+    return t >= t.replace(hour=hh, minute=mm, second=0,
+                          microsecond=0) + timedelta(minutes=qoshimcha)
+
+
+def kunlik_qorovul():
+    """Kechikkan postni va kunlik hisobotni o'zi bajaradi."""
+    if not _ha("qorovul", "ha"):
+        return
+
+    ert_bor, kech_bor = _bugungi_slotlar()
+    for kalit, bor in (("ertalab", ert_bor), ("kechqurun", kech_bor)):
+        if bor:
+            continue
+        vaqt = _slot_vaqti(kalit)
+        if not _muddat_otdimi(vaqt):
+            continue
+        if not _qorovul_band(kalit):
+            continue
+        log(f"[qorovul] {kalit} posti chiqmagan — o'zim chiqaraman")
+        try:
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   f"⏰ <b>Jadval ishlamadi</b>\n\n{vaqt} dagi post chiqmagan "
+                   f"— GitHub jadvalni ishga tushirmagan. Men o'zim "
+                   f"tayyorlab chiqaraman, bir necha daqiqa kutib turing.")
+        except Exception:
+            pass
+        globals()["SLOT"] = kalit
+        globals()["PUBLISH_TIME"] = vaqt
+        try:
+            run(force_now=True)
+            log(f"[qorovul] {kalit} posti chiqdi")
+        except Exception as e:
+            log(f"[qorovul] chiqarib bo'lmadi: {e}\n{traceback.format_exc()}")
+            try:
+                tg_msg(TELEGRAM_ADMIN_ID,
+                       f"❌ <b>Qorovul ham chiqara olmadi</b>\n"
+                       f"<code>{html.escape(str(e)[:400])}</code>")
+            except Exception:
+                pass
+        return          # bitta chaqiriqda bitta ish — qolgani keyingi safar
+
+    # ── Kunlik hisobot va maslahat ────────────────────────────────
+    hisobot_vaqt = sozlama("hisobot_vaqt", "21:30")
+    if _muddat_otdimi(hisobot_vaqt, 0) and _qorovul_band("hisobot"):
+        log("[qorovul] kunlik hisobot yuborilmoqda")
+        try:
+            kunlik_osish_tahlili()
+        except Exception as e:
+            log(f"[qorovul] hisobot xatosi: {e}")
+            try:
+                tg_msg(TELEGRAM_ADMIN_ID,
+                       f"❌ Kunlik hisobot tayyorlanmadi: "
+                       f"<code>{html.escape(str(e)[:300])}</code>")
+            except Exception:
+                pass
+
+
 def listen(minutes=340):
     """Botni tinglash rejimi. Admin buyruqlarini qabul qiladi."""
     log(f"[listen] boshlandi — {minutes} daqiqa")
@@ -5223,6 +5356,13 @@ def listen(minutes=340):
                 maxsus_postlarni_tekshir()
             except Exception as e:
                 log(f"[maxsus] listen ichida xato: {e}")
+        # Kunlik postlar va hisobot uchun qorovul (har 5 daqiqada)
+        if time.time() - _QOROVUL_VAQT[0] >= QOROVUL_ORALIQ:
+            _QOROVUL_VAQT[0] = time.time()
+            try:
+                kunlik_qorovul()
+            except Exception as e:
+                log(f"[qorovul] listen ichida xato: {e}")
     obuna_yoz(majburiy=True)
     try:
         auditoriya_yoz(0, "", majburiy=True)
