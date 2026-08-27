@@ -107,5 +107,13 @@
     "tur": "stories",
     "slot": "ertalab",
     "day": 6
+  },
+  {
+    "date": "2026-08-27 20:20",
+    "topic": "Ko'p kvartirali uylarni boshqarish to'liq xususiy sektorga o'tkaziladi",
+    "title": "Ko'p qavatli uylar boshqaruvi to'liq xususiy sektorga o'tadi",
+    "message_id": 31,
+    "tur": "yangilik",
+    "slot": "kechqurun"
   }
 ]
