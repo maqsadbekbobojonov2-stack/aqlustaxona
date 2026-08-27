@@ -1333,6 +1333,43 @@ HIKOYA:
         return " ".join(plain.split()[:90])
 
 
+_UZ_SOZLAR = (" va ", " uchun", " bilan", " kerak", " emas", " bo'l",
+              " qil", " o'z", " ular", " bu ", " shu ", " ham ", " lekin",
+              " yoki", " startap", " biznes ", " mijoz", " pul ", " yil ")
+
+
+def _inglizcha_sahnami(matn):
+    """Rasm g'oyasi haqiqatan inglizcha va mazmunli sahnami?
+
+    MUHIM: ilgari AI javob bermasa, funksiya postning O'ZBEKCHA
+    sarlavhasini qaytarardi. U to'g'ridan-to'g'ri Flux'ga ketardi —
+    Flux o'zbekchani tushunmaydi va mavzuga aloqasiz rasm chizardi.
+    Aynan shu sabab rasmlar matnga mos kelmagan."""
+    m = (matn or "").strip()
+    if len(m.split()) < 4:
+        return False
+    # ASCII bo'lmagan belgi (kirill, o'zbekcha apostrof, emoji) — o'zbekcha
+    if any(ord(ch) > 127 for ch in m):
+        return False
+    past = " " + m.lower() + " "
+    if any(w in past for w in _UZ_SOZLAR):
+        return False
+    # O'zbekcha so'zlarda apostrof ko'p ("ko'p", "bo'lish"). Inglizchada
+    # faqat qisqartmalarda uchraydi.
+    for soz in m.lower().replace(",", " ").split():
+        if "'" in soz and soz not in ("don't", "it's", "isn't", "man's",
+                                      "person's", "doesn't", "won't"):
+            return False
+    # Haqiqiy inglizcha gapda yordamchi so'zlar bo'lishi SHART
+    yordamchi = {"a", "an", "the", "of", "in", "on", "at", "with", "and",
+                 "over", "above", "next", "to", "into", "from", "while",
+                 "under", "beside", "near", "as", "by", "one", "two"}
+    sozlar = [w.strip(".,;:!?") for w in m.lower().split()]
+    if len(sozlar) < 5 or sum(1 for w in sozlar if w in yordamchi) < 2:
+        return False
+    return True
+
+
 def story_image_idea(title, text):
     """Rasm uchun ingliz tilida qisqa vizual g'oya.
 
@@ -1353,12 +1390,20 @@ Requirements:
 
 TITLE: {title}
 POST: {strip_tags(text)[:1500]}"""
-    try:
-        out = clean(gem_text(prompt, temperature=0.8)).strip()
-        return out.split("\n")[0][:300] or title
-    except Exception as e:
-        log(f"[rasm] g'oya olinmadi: {e}")
-        return title
+    for urinish in (1, 2):
+        try:
+            out = clean(gem_text(prompt, temperature=0.8)).strip()
+            out = out.split("\n")[0][:300].strip(' "\'.')
+        except Exception as e:
+            log(f"[rasm] g'oya olinmadi ({urinish}): {e}")
+            continue
+        if _inglizcha_sahnami(out):
+            return out
+        log(f"[rasm] g'oya inglizcha emas, qayta so'rayman: {out[:80]}")
+    # Ikki marta ham inglizcha sahna chiqmadi. O'zbekcha sarlavhani
+    # Flux'ga YUBORMAYMIZ — noto'g'ri rasmdan ko'ra rasmsiz post yaxshi.
+    log("[rasm] mos g'oya topilmadi — bu post rasmsiz chiqadi")
+    return None
 
 
 def build_story_post(day=None):
@@ -3166,7 +3211,9 @@ Javobni FAQAT shu JSON ko'rinishida ber:
         raise RuntimeError("2-agent: bo'sh post qaytdi")
     post = {"title": title, "body": body,
             "audio_script": strip_tags(d.get("audio_script", "")).strip(),
-            "image_idea": d.get("image_idea", topic.get("topic", "")),
+            "image_idea": (d.get("image_idea")
+                           if _inglizcha_sahnami(d.get("image_idea"))
+                           else None),
             "text": f"<b>{title}</b>\n\n{body}"}
     print(f"[2-agent] Post yozildi — {len(post['text'])} belgi")
 
@@ -3204,6 +3251,16 @@ POST:
 
 
 def agent3_image(post):
+    if not post.get("image_idea"):
+        # Mos vizual g'oya yo'q — mavzuga aloqasiz rasm chizmaymiz.
+        log("[3-agent] rasm g'oyasi yo'q — rasm chizilmadi")
+        try:
+            tg_msg(TELEGRAM_ADMIN_ID,
+                   "⚠️ Bu postga mos rasm g'oyasi olinmadi — post rasmsiz "
+                   "chiqdi. (AI kvotasi tugagan bo'lishi mumkin.)")
+        except Exception:
+            pass
+        return None
     qosh = sozlama("rasm_qoshimcha")
     prompt = f"""{IMAGE_STYLE}
 {('ADMIN NOTE (follow this too): ' + qosh) if qosh else ''}
@@ -3584,9 +3641,41 @@ def tasdiq_sora(post, kutish=10):
         return True
 
 
+def slot_bugun_chiqdimi(slot):
+    """Bugun shu slotda post allaqachon kanalga chiqqanmi?"""
+    ert, kech = _bugungi_slotlar()
+    return ert if slot == "ertalab" else kech
+
+
 def run(force_now=False, preview_only=False):
     src = pick_source()
     log(f"[jadval] slot={SLOT} · tur={src}")
+
+    # ── TAKROR POSTGA QARSHI QULF ─────────────────────────────────
+    # GitHub Actions jadvali soatlab kechikib ishga tushishi mumkin.
+    # 2026-08-27 da ertalabki ish 10 SOAT kechikib (18:06 da) ishga
+    # tushdi va o'sha kuni ikkinchi hikoyani chiqarib yubordi.
+    # Shuning uchun chiqarishdan OLDIN tekshiramiz: bugun bu slotda
+    # post allaqachon chiqqan bo'lsa — takrorlamaymiz.
+    # Admin aniq raqam bergan bo'lsa (--day / --dars) qulf ishlamaydi.
+    majburiy = bool(os.getenv("FORCE_DAY", "").strip()
+                    or os.getenv("FORCE_KURS", "").strip())
+    if not preview_only and not majburiy:
+        try:
+            if slot_bugun_chiqdimi(SLOT):
+                log(f"[jadval] bugun {SLOT} posti allaqachon chiqqan — "
+                    f"takrorlamayman")
+                try:
+                    tg_msg(TELEGRAM_ADMIN_ID,
+                           f"ℹ️ <b>Takror post to'xtatildi</b>\n\n"
+                           f"Jadval kechikib ishga tushdi, lekin bugungi "
+                           f"<b>{SLOT}</b> posti allaqachon chiqqan — "
+                           f"ikkinchisini chiqarmadim.")
+                except Exception:
+                    pass
+                return
+        except Exception as e:
+            log(f"[jadval] takror tekshiruvi ishlamadi: {e}")
 
     hh, mm = (int(x) for x in PUBLISH_TIME.split(":"))
     t = now()
