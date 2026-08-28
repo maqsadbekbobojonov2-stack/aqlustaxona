@@ -7,8 +7,16 @@ on:
     # uchun ~55 daqiqa oldin boshlanadi, aniq chiqish vaqtini skript
     # o'zi kutadi. Bu GitHub kechikishi tufayli jadval vaqtidan
     # keyin chiqib qolish xavfini kamaytiradi.
-    - cron: "50 2 * * *"     # 07:50 Toshkent (08:45 — ertalabki hikoya)
-    - cron: "50 13 * * *"    # 18:50 Toshkent (19:45 — kurs yoki yangilik)
+    # GitHub cron KAFOLATLANMAGAN — soatlab kechikadi yoki umuman
+    # ishga tushmaydi. Shuning uchun har slot uchun 3 ta zaxira vaqt
+    # qo'yamiz. bot.py ichidagi TAKROR QULFI tufayli ortiqcha ishlar
+    # zararsiz: post allaqachon chiqqan bo'lsa, ular hech narsa qilmaydi.
+    - cron: "50 2 * * *"     # 07:50 Toshkent → 08:45 ertalabki hikoya
+    - cron: "20 3 * * *"     # 08:20 Toshkent — zaxira
+    - cron: "5 4 * * *"      # 09:05 Toshkent — zaxira
+    - cron: "50 13 * * *"    # 18:50 Toshkent → 19:45 kurs yoki yangilik
+    - cron: "20 14 * * *"    # 19:20 Toshkent — zaxira
+    - cron: "5 15 * * *"     # 20:05 Toshkent — zaxira
     - cron: "30 15 * * 0"    # yakshanba 20:30 — haftalik ko'rik
   workflow_dispatch:
     inputs:
@@ -96,8 +104,10 @@ jobs:
 
           # ── Slot va chiqish vaqtini aniqlash ──────────────────
           case "$SCHEDULE" in
-            "50 2 * * *")   SLOT=ertalab;   PUBLISH_TIME=${{ vars.ERTALAB_VAQT || '08:45' }} ;;
-            "50 13 * * *")  SLOT=kechqurun; PUBLISH_TIME=${{ vars.KECHQURUN_VAQT || '19:45' }} ;;
+            "50 2 * * *"|"20 3 * * *"|"5 4 * * *")
+                            SLOT=ertalab;   PUBLISH_TIME=${{ vars.ERTALAB_VAQT || '08:45' }} ;;
+            "50 13 * * *"|"20 14 * * *"|"5 15 * * *")
+                            SLOT=kechqurun; PUBLISH_TIME=${{ vars.KECHQURUN_VAQT || '19:45' }} ;;
             "30 15 * * 0")  SLOT=haftalik ;;
             *)              SLOT=${IN_SLOT:-kechqurun}
                             if [ "$SLOT" = "ertalab" ]; then
