@@ -550,7 +550,14 @@ def hist_remove(entry):
 
 
 # ── 365 kunlik hikoyalar ─────────────────────────────────────────
-def stories_state():
+# stories_state.json ham tarix kabi GitHub API orqali yoziladi.
+# Ilgari u faqat lokal yozilib, workflow oxirida commit qilinardi — ish
+# bekor qilinsa (har 3 soatda cancel-in-progress bo'ladi) holat
+# YO'QOLARDI va ertasi kuni O'SHA hikoya qayta chiqib ketardi.
+_SS_KESH = [0.0, None]
+
+
+def _stories_lokal():
     if not STORIES_STATE.exists():
         return {"last_sent": 0, "sent": []}
     try:
@@ -558,6 +565,36 @@ def stories_state():
         return d if isinstance(d, dict) else {"last_sent": 0, "sent": []}
     except (json.JSONDecodeError, OSError):
         return {"last_sent": 0, "sent": []}
+
+
+def stories_state(yangila=False):
+    if gh_bor():
+        if (not yangila and _SS_KESH[1] is not None
+                and time.time() - _SS_KESH[0] < 60):
+            return json.loads(json.dumps(_SS_KESH[1]))
+        try:
+            d, _ = _gh_json_oqi("stories_state.json", None)
+            if isinstance(d, dict):
+                _SS_KESH[0], _SS_KESH[1] = time.time(), d
+                return json.loads(json.dumps(d))
+        except Exception as e:
+            log(f"[holat] stories_state GitHub'dan o'qilmadi: {e}")
+    return _stories_lokal()
+
+
+def stories_saqla(st, izoh="holat"):
+    """Holatni saqlaydi: lokal nusxa + GitHub API (ishonchli)."""
+    STORIES_STATE.write_text(
+        json.dumps(st, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    _SS_KESH[0], _SS_KESH[1] = time.time(), st
+    if gh_bor():
+        try:
+            _, sha = _gh_json_oqi("stories_state.json", None)
+            gh_yoz("stories_state.json",
+                   json.dumps(st, ensure_ascii=False, indent=1) + "\n",
+                   f"holat: {izoh}", sha=sha)
+        except Exception as e:
+            log(f"[holat] stories_state GitHub'ga yozilmadi: {e}")
 
 
 # ── Obunachilar va taklif tizimi ─────────────────────────────────
@@ -736,8 +773,7 @@ def stories_mark_sent(day, message_id=None):
         {"day": day, "date": now().strftime("%Y-%m-%d %H:%M"),
          "message_id": message_id})
     st["sent"] = st["sent"][-400:]
-    STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
-                             encoding="utf-8")
+    stories_saqla(st)
 
 
 def stories_rollback(day):
@@ -745,8 +781,7 @@ def stories_rollback(day):
     st = stories_state()
     st["sent"] = [s for s in st.get("sent", []) if s.get("day") != day]
     st["last_sent"] = max([s.get("day", 0) for s in st["sent"]], default=0)
-    STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
-                             encoding="utf-8")
+    stories_saqla(st)
 
 
 _STORIES_CACHE = {}
@@ -792,15 +827,13 @@ def kurs_mark_sent(n, message_id=None):
     st = stories_state()
     st["kurs_oxirgi"] = max(st.get("kurs_oxirgi", 0), n)
     st["oxirgi_kechki"] = "kurs"
-    STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
-                             encoding="utf-8")
+    stories_saqla(st)
 
 
 def yangilik_mark_sent():
     st = stories_state()
     st["oxirgi_kechki"] = "yangilik"
-    STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
-                             encoding="utf-8")
+    stories_saqla(st)
 
 
 def kurs_rollback(n):
@@ -808,8 +841,7 @@ def kurs_rollback(n):
     st = stories_state()
     if st.get("kurs_oxirgi") == n:
         st["kurs_oxirgi"] = n - 1
-        STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
-                                 encoding="utf-8")
+        stories_saqla(st)
 
 
 def kechki_tur_tiklash(qolgan_hist):
@@ -823,8 +855,7 @@ def kechki_tur_tiklash(qolgan_hist):
             break
     else:
         st.pop("oxirgi_kechki", None)
-    STORIES_STATE.write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n",
-                             encoding="utf-8")
+    stories_saqla(st)
 
 
 def postni_ochir(entry):
