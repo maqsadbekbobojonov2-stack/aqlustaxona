@@ -1,14 +1,14 @@
 {
-  "sana": "2026-08-29",
-  "holat": "Kanal a'zolari: 21 ta\nKecha bilan farq: +0\nOxirgi hafta: -1 (kuniga o'rtacha -0.3)\nEng yomon kun: 2026-08-27 (-1)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanalning o'sishi sekinlashgan, kuniga o'rtacha +0,1 ta yangi a'zo qo'shilyapti. Oxirgi hafta -1 ta a'zo yo'qolgan. Shu sababli, faollashtirish vositalaridan foydalanish zarur.",
+  "sana": "2026-08-30",
+  "holat": "Kanal a'zolari: 21 ta\nKecha bilan farq: +0\nOxirgi hafta: -1 (kuniga o'rtacha -0.2)\nEng yomon kun: 2026-08-27 (-1)\nBotga yozilganlar: 4 ta",
+  "tahlil": "Kanal a'zolari soni sekinlashgan, oxirgi hafta -1 ga kamaygan. Shu sababli, faollashtirish va jalb qilish choralarini ko'rib chiqish kerak. Takliflar auditoriya o'sishini tezlashtirishga qaratilgan.",
   "takliflar": [
     {
-      "nom": "Startap bosqichlari",
-      "sabab": "Kanal a'zolari soni 21 ta, o'sish sekinlashgan. So'rovnoma orqali ularning startap bosqichlarini bilib, keyingi postlarni shu asosda tayyorlash mumkin.",
+      "nom": "Qaysi bosqichdasiz",
+      "sabab": "Kanal a'zolari soni sekinlashgan, so'rovnoma orqali ularning manfaatlarini bilib, kontentni ularga moslashtirish mumkin.",
       "amal": "sorovnoma",
       "matn": "",
-      "savol": "Sizning startapingiz hozir qaysi bosqichda?",
+      "savol": "Startapingiz hozir qaysi bosqichda?",
       "variantlar": [
         "Hali faqat g'oya",
         "MVP qilyapman",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Kanal a'zolarining faolligi ortadi, ularning startap bosqichlari aniqlanadi.",
+      "kutilgan": "Auditoriya manfaatlarini bilib, kontentni ularga moslashtirish",
+      "bajarildi": false
+    },
+    {
+      "nom": "Startap g'oyalari ro'yxati",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, shu sababli, foydali ro'yxat orqali jalb qilish mumkin.",
+      "amal": "post",
+      "matn": "Startap g'oyalari ro'yxati:\n1. Texnologiya sohasida yangi mahsulot ishlab chiqish\n2. E-commerce platformasi yaratish\n3. Qishloq xo'jaligida yangi texnologiyalarni joriy etish",
+      "savol": "",
+      "variantlar": [],
+      "kutilgan": "Auditoriya startap g'oyalari haqida bilib, jalb qilinadi",
       "bajarildi": false
     },
     {
       "nom": "Bepul qo'llanma",
-      "sabab": "Kanal a'zolari soni kam, bepul qo'llanma orqali yangi a'zolar jalb qilinishi mumkin.",
+      "sabab": "Bepul qo'llanma orqali odamlarni jalb qilish mumkin, shu sababli, startap haqida qisqa qo'llanma taklif qilish mumkin.",
       "amal": "post",
-      "matn": "Bepul startap g'oyalari qo'llanmasi! Botga yozing va o'zingizning startap g'oyangizni ishlab chiqing!",
+      "matn": "Bepul startap qo'llanmasi:\n1. G'oya bilan boshlash\n2. Mijozni topish\n3. MVP qilish\nBotga yozing va bepul qo'llanmani oling!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Yangi a'zolar jalb qilinadi, kanal a'zolari soni ortadi.",
-      "bajarildi": false
-    },
-    {
-      "nom": "Startap g'oyalari",
-      "sabab": "Kanal a'zolari soni kam, startap g'oyalari orqali ularning qiziqishini ortirish mumkin.",
-      "amal": "post",
-      "matn": "Startap g'oyalari: 1) Ekologik toza mahsulotlar ishlab chiqarish, 2) Onlayn ta'lim platformasi yaratish, 3) Qishloq xo'jaligi mahsulotlarini sotish uchun onlayn platforma yaratish.",
-      "savol": "",
-      "variantlar": [],
-      "kutilgan": "Kanal a'zolarining qiziqishi ortadi, ularning startap g'oyalari rivojlantiriladi.",
+      "kutilgan": "Odamlar bepul qo'llanma uchun botga yozishadi va jalb qilinadi",
       "bajarildi": false
     }
   ],
