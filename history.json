@@ -203,5 +203,13 @@
     "tur": "stories",
     "slot": "ertalab",
     "day": 11
+  },
+  {
+    "date": "2026-09-02 21:16",
+    "topic": "O'zbekistonda biznesni ro'yxatga olish bo'yicha yirik tadbir o'tkaziladi",
+    "title": "Biznesni rasmiylashtirish uchun 45 kunlik davr",
+    "message_id": 47,
+    "tur": "yangilik",
+    "slot": "kechqurun"
   }
 ]
