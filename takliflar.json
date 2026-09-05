@@ -1,11 +1,11 @@
 {
-  "sana": "2026-09-04",
+  "sana": "2026-09-05",
   "holat": "Kanal a'zolari: 18 ta\nKecha bilan farq: +0\nOxirgi hafta: -3 (kuniga o'rtacha -0.4)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni sekinlashgan, o'sish tezligi kamayib bormoqda. Shu sababli, faollashtirish vositalaridan foydalanish kerak. Takliflar auditoriya bilan aloqa o'rnatish, ularning qiziqishlarini bilish va shu asosda kontentni rivojlantirishga qaratilgan.",
+  "tahlil": "Kanal a'zolari soni sekinlashgan, o'rtacha kuniga +0, oxirgi hafta -3. Shu sababli, faollashtirish va jalb qilishga qaratilgan takliflar kerak.",
   "takliflar": [
     {
-      "nom": "Startap bosqichlari",
-      "sabab": "Kanal a'zolari soni kamayib bormoqda, shu sababli ularning startap bosqichlarini bilish kerak",
+      "nom": "Startap bosqichi",
+      "sabab": "Kanal a'zolari soni sekinlashgan, 22 a'zoda kuniga o'rtacha +1, so'rovnoma eng arzon o'sish vositasi",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Auditoriya startap bosqichlari haqida ma'lumot beradi",
+      "kutilgan": "Kanal a'zolari faollashadi, kelgusi postlarni ko'radi",
       "bajarildi": false
     },
     {
       "nom": "Bepul qo'llanma",
-      "sabab": "Auditoriya startap g'oyalari va biznesni rivojlantirish bo'yicha qo'llanmani qidirmoqda",
+      "sabab": "Bepul qo'llanma e'loni odamni botga yozishga majbur qiladi, 3 ta botga yozilgan",
       "amal": "post",
-      "matn": "Bepul startap qo'llanmasi! Botga yozing va startap g'oyalaringizni amalga oshiring!",
+      "matn": "Bepul startap g'oyalari qo'llanmasi! Botga yoziling va o'zingizning startap g'oyangizni ishlab chiqing!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Auditoriya bepul qo'llanmani oladi va kanalga qiziqadi",
+      "kutilgan": "Bepul qo'llanmani ko'proq odam yuklab oladi, botga yoziladi",
       "bajarildi": false
     },
     {
-      "nom": "Startap g'oyalari",
-      "sabab": "Auditoriya startap g'oyalari haqida qiziqib turibdi",
+      "nom": "Rasmli post",
+      "sabab": "Rasmlar diqqatni jalb qiladi, 96 ta startap kursi darsi mavjud",
       "amal": "rasm",
-      "matn": "Startap g'oyalari uchun 5 ta eng yaxshi yo'nalish",
-      "savol": "Startap g'oyasi uchun rasm",
+      "matn": "Startap kursi 7-dars: MAQTOV EMAS, OLDINDAN TO'LOV",
+      "savol": "3d isometric illustration of a small team celebrating first sale, warm light",
       "variantlar": [],
-      "kutilgan": "Auditoriya startap g'oyalari haqida ma'lumot oladi",
+      "kutilgan": "Rasmli post ko'proq diqqatni jalb qiladi, kanal a'zolari soni ortadi",
       "bajarildi": false
     }
   ],
