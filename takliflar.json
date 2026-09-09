@@ -1,14 +1,14 @@
 {
-  "sana": "2026-09-08",
+  "sana": "2026-09-09",
   "holat": "Kanal a'zolari: 17 ta\nKecha bilan farq: +0\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni 17 ta, o'sish sekinlashgan. Oxirgi hafta +0, eng yaxshi kun +1, eng yomon kun -3. Botga yozilganlar 4 ta, ularning 3 tasi bepul qo'llanma olgan. Shu sababli, kanali faollashtirish va auditoriyani jalb qilishga qaratilgan takliflar kerak.",
+  "tahlil": "Kanal o'sishi sekinlashgan, oxirgi hafta +0 ta yangi a'zo qo'shgan. Botga yozilganlar soni 4 ta, ularning 3 tasi bepul qo'llanma olgan. Shu sababli, kanaldagi kontentni jalb qiluvchi qilish va a'zolarni faollashtirish zarur.",
   "takliflar": [
     {
-      "nom": "Kanal faollashtirish",
-      "sabab": "Kanal a'zolari soni 17 ta, o'sish sekinlashgan, shuning uchun faollashtirish kerak. So'rovnomalar Telegramda eng kuchli faollashtirish vositasi",
+      "nom": "Startap bosqichlari so'rovnomasi",
+      "sabab": "Kanal o'sishi sekinlashgan, a'zolar faolligini oshirish kerak. So'rovnoma a'zolarni faollashtirish va ularning startap bosqichlarini bilishga yordam beradi.",
       "amal": "sorovnoma",
       "matn": "",
-      "savol": "Sizning startap g'oyangiz qaysi bosqichda?",
+      "savol": "Sizning startapingiz hozir qaysi bosqichda?",
       "variantlar": [
         "Hali faqat g'oya",
         "MVP qilyapman",
@@ -16,29 +16,28 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Kanal a'zolari faollashadi, javoblar menga kelgusi postlarni kimga moslashni aytadi",
+      "kutilgan": "A'zolar faolligi oshadi, ularning startap bosqichlari aniqlanadi.",
       "bajarildi": false
     },
     {
-      "nom": "Bepul qo'llanma e'loni",
-      "sabab": "Botga yozilganlarning 3 tasi bepul qo'llanma olgan, shuning uchun bepul qo'llanma e'loni qilish kerak",
+      "nom": "Bepul startap qo'llanmasi",
+      "sabab": "Botga yozilganlar soni 4 ta, ularning 3 tasi bepul qo'llanma olgan. Bepul qo'llanma e'loni a'zolarni jalb qilishga yordam beradi.",
       "amal": "post",
-      "matn": "Bepul startap qo'llanmasi! Botga yoziling va startap g'oyangizni amalga oshirishda yordam oling. Qo'llanma ichida: startap g'oyasini topish, MVP qilish, birinchi mijozni topish va boshqalar",
+      "matn": "Bepul startap qo'llanmasi! Startapingizni qanday boshlashingiz va o'stirishingiz haqida bilib oling. Botga yoziling va qo'llanmani oling!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Bepul qo'llanma e'loni kanali jalb qiladi, odamlar botga yozilishadi",
+      "kutilgan": "Yangi a'zolar qo'shilsa, ular startap qo'llanmasini oladilar.",
       "bajarildi": false
     },
     {
-      "nom": "Rasm chizish",
-      "sabab": "Kanalda rasm chizish orqali auditoriya jalb qilish mumkin. Rasm ichida startap g'oyasi, MVP, sotuv va boshqalar haqida tasvirlar bo'lishi kerak",
-      "amal": "rasm",
-      "matn": "Startap g'oyasi qaysi bosqichda?",
-      "savol": "3d isometric illustration of a small team celebrating first sale, warm light",
+      "nom": "Startap g'oyalari muhokamasi",
+      "sabab": "Kanal a'zolari soni 17 ta, ularning faolligini oshirish kerak. Muhokama a'zolarni faollashtirishga yordam beradi.",
+      "amal": "post",
+      "matn": "Startap g'oyalari muhokamasi! Sizning startap g'oyangiz nima? Boshqalar bilan baham ko'ring va o'z g'oyangizni rivojlantiring!",
+      "savol": "",
       "variantlar": [],
-      "kutilgan": "Rasm chizish kanali jalb qiladi, odamlar rasm haqida gaplashishadi",
-      "bajarildi": true,
-      "bajarilgan_vaqt": "2026-09-09 18:16"
+      "kutilgan": "A'zolar faolligi oshadi, ular startap g'oyalari haqida muhokama qiladilar.",
+      "bajarildi": false
     }
   ],
   "ogohlantirish": true,
