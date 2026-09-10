@@ -1,14 +1,14 @@
 {
-  "sana": "2026-09-09",
-  "holat": "Kanal a'zolari: 17 ta\nKecha bilan farq: +0\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal o'sishi sekinlashgan, oxirgi hafta +0 ta yangi a'zo qo'shgan. Botga yozilganlar soni 4 ta, ularning 3 tasi bepul qo'llanma olgan. Shu sababli, kanaldagi kontentni jalb qiluvchi qilish va a'zolarni faollashtirish zarur.",
+  "sana": "2026-09-10",
+  "holat": "Kanal a'zolari: 18 ta\nKecha bilan farq: +1\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
+  "tahlil": "Kanal o'sishi sekinlashgan, oxirgi hafta +0 o'sish kuzatilmoqda. Shu sababdan, kanalni faollashtirish va auditoriyani jalb qilish uchun yangi usullar kerak.",
   "takliflar": [
     {
-      "nom": "Startap bosqichlari so'rovnomasi",
-      "sabab": "Kanal o'sishi sekinlashgan, a'zolar faolligini oshirish kerak. So'rovnoma a'zolarni faollashtirish va ularning startap bosqichlarini bilishga yordam beradi.",
+      "nom": "Kanal o'sishi bosqichi",
+      "sabab": "22 a'zoda kuniga o'rtacha +1 — bu juda kam. Kichik kanalda so'rovnoma eng arzon o'sish vositasi",
       "amal": "sorovnoma",
       "matn": "",
-      "savol": "Sizning startapingiz hozir qaysi bosqichda?",
+      "savol": "Startapingiz hozir qaysi bosqichda?",
       "variantlar": [
         "Hali faqat g'oya",
         "MVP qilyapman",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "A'zolar faolligi oshadi, ularning startap bosqichlari aniqlanadi.",
+      "kutilgan": "Kanal a'zolarining faolligi ortishi",
       "bajarildi": false
     },
     {
-      "nom": "Bepul startap qo'llanmasi",
-      "sabab": "Botga yozilganlar soni 4 ta, ularning 3 tasi bepul qo'llanma olgan. Bepul qo'llanma e'loni a'zolarni jalb qilishga yordam beradi.",
+      "nom": "Startap g'oyalari",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, 2026-yilda Telegram kanallarini o'stirishning eng samarali usullaridan biri — kontentni diversifikatsiya qilish",
       "amal": "post",
-      "matn": "Bepul startap qo'llanmasi! Startapingizni qanday boshlashingiz va o'stirishingiz haqida bilib oling. Botga yoziling va qo'llanmani oling!",
+      "matn": "Startap g'oyalari: <b>qaysi soha eng perspektiv?</b> Sizning startap g'oyangiz nima? Biz bilan baham ko'ring!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Yangi a'zolar qo'shilsa, ular startap qo'llanmasini oladilar.",
+      "kutilgan": "Kanal a'zolarining startap g'oyalari haqidagi munozarasi",
       "bajarildi": false
     },
     {
-      "nom": "Startap g'oyalari muhokamasi",
-      "sabab": "Kanal a'zolari soni 17 ta, ularning faolligini oshirish kerak. Muhokama a'zolarni faollashtirishga yordam beradi.",
-      "amal": "post",
-      "matn": "Startap g'oyalari muhokamasi! Sizning startap g'oyangiz nima? Boshqalar bilan baham ko'ring va o'z g'oyangizni rivojlantiring!",
+      "nom": "Muhim xabar",
+      "sabab": "O'zbekistonda 315 ming tadbirkorning soliq penyalari bekor qilinadi, bu xabar kanal a'zolariga muhim",
+      "amal": "pin",
+      "matn": "O'zbekistonda 315 ming tadbirkorning soliq penyalari bekor qilinadi! <b>Buning nima ma'nosiga ega?</b> Biz bilan baham ko'ring!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "A'zolar faolligi oshadi, ular startap g'oyalari haqida muhokama qiladilar.",
+      "kutilgan": "Kanal a'zolarining diqqatini jalb qilish",
       "bajarildi": false
     }
   ],
