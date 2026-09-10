@@ -343,5 +343,13 @@
     "tur": "stories",
     "slot": "ertalab",
     "day": 19
+  },
+  {
+    "date": "2026-09-10 20:16",
+    "topic": "Birinchi qavatdagi 46 ming xonadondan biznesda foydalanish imkoni yaratildi",
+    "title": "Birinchi qavatdagi 46 ming xonadonda biznes ochish mumkin",
+    "message_id": 64,
+    "tur": "yangilik",
+    "slot": "kechqurun"
   }
 ]
