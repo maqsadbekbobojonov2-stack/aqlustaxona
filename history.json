@@ -378,5 +378,13 @@
     "tur": "stories",
     "slot": "ertalab",
     "day": 21
+  },
+  {
+    "date": "2026-09-12 20:20",
+    "topic": "Toshkentda investorlar muammolarini hal etishning yangi tartibi joriy etiladi",
+    "title": "Toshkentda investorlar uchun yangi tartib joriy etildi",
+    "message_id": 68,
+    "tur": "yangilik",
+    "slot": "kechqurun"
   }
 ]
