@@ -1,14 +1,14 @@
 {
-  "sana": "2026-09-15",
+  "sana": "2026-09-16",
   "holat": "Kanal a'zolari: 16 ta\nKecha bilan farq: +0\nOxirgi hafta: -1 (kuniga o'rtacha -0.1)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni sekinlashgan, oxirgi hafta -1 ga kamaygan. Shuning uchun, kanaldagi faollashuvni oshirish va yangi a'zolar jalb qilish zarur. Takliflar kanaldagi sekinlashuvni bartaraf etish va auditoriyani jalb qilishga qaratilgan.",
+  "tahlil": "Kanal a'zolari soni o'sishi sekinlashgan, oxirgi hafta -1 ga kamaygan. Shu sababli, kanalni faollashtirish va a'zolarning qiziqishini uyg'otish kerak. Takliflar kanalning hozirgi holatiga asoslanib, auditoriyaning qiziqishini uyg'otish va ularni jalb qilishga qaratilgan.",
   "takliflar": [
     {
       "nom": "Startap bosqichlari so'rovnomasi",
-      "sabab": "Kanal a'zolari soni kamayib bormoqda, shuning uchun ularning startap bosqichlarini bilish zarur, bu kanaldagi kontentni ularning ehtiyojlariga moslashtirishga yordam beradi.",
+      "sabab": "Kanal a'zolari soni o'sishi sekinlashgan, shuning uchun ularning startap bosqichlarini bilish va ularning qiziqishini uyg'otish kerak.",
       "amal": "sorovnoma",
       "matn": "",
-      "savol": "Sizning startapingiz hozir qaysi bosqichda?",
+      "savol": "Startapingiz hozir qaysi bosqichda?",
       "variantlar": [
         "Hali faqat g'oya",
         "MVP qilyapman",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Kanal a'zolarining startap bosqichlari haqida ma'lumot olish",
+      "kutilgan": "So'rovnomaga javob bergan a'zolar soni ortishi va ularning qiziqishini uyg'otish.",
       "bajarildi": false
     },
     {
-      "nom": "O'zbekistondagi startap tendensiyalari",
-      "sabab": "O'zbekistonda startap va texnologiya sohasida qizib turibdigan mavzular haqida ma'lumot olish zarur, bu kanaldagi kontentni yangi va qiziqarli qilishga yordam beradi.",
+      "nom": "O'zbekistonda startap g'oyalari",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, shuning uchun kanalga qo'shimcha jalb qiluvchi post chiqarish kerak.",
       "amal": "post",
-      "matn": "O'zbekistonda startap va texnologiya sohasida qizib turibdigan mavzular haqida ma'lumot olish uchun biz sizdan yordam so'raymiz. Qaysi mavzular sizning e'zingizni qozondi?",
+      "matn": "O'zbekistonda startap g'oyalari qizib turibdi. Sizning startap g'oyangiz nima? Bizning kanalda startap g'oyalari haqida maqolalar va videolar bor. Obunachi bo'ling va startap g'oyalaringizni jalb qiling!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Kanal a'zolarining qiziqishlari haqida ma'lumot olish",
+      "kutilgan": "Postga ko'p odam tashrif buyurishi va a'zolar soni ortishi.",
       "bajarildi": false
     },
     {
-      "nom": "Kanalni reytingga chiqarish",
-      "sabab": "Kanal a'zolari soni kamayib bormoqda, shuning uchun kanaldagi kontentni reytingga chiqarish zarur, bu yangi a'zolar jalb qilishga yordam beradi.",
+      "nom": "Startap kursi aksiyasi",
+      "sabab": "Startap kursi qizib turibdi, shuning uchun kanalga aksiyali post chiqarish kerak.",
       "amal": "post",
-      "matn": "Kanalni reytingga chiqarish uchun sizning yordamingiz kerak. Kanalimizdagi kontentni baham ko'ring va do'stlaringizga tavsiya qiling.",
+      "matn": "Startap kursi aksiyasi! Bizning kanalda startap kursi haqida maqolalar va videolar bor. Obunachi bo'ling va startap kursingizni jalb qiling! Aksiyaga qatnashish uchun #startap_kursi hashtag'ini ishlating.",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Kanal reytingi oshishi",
+      "kutilgan": "Postga ko'p odam tashrif buyurishi va a'zolar soni ortishi.",
       "bajarildi": false
     }
   ],
