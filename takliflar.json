@@ -1,11 +1,11 @@
 {
-  "sana": "2026-09-19",
-  "holat": "Kanal a'zolari: 17 ta\nKecha bilan farq: +1\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni sekin o'sib bormoqda, o'rtacha kuniga +0.0 ta yangi a'zo qo'shilib bormoqda. Shu sababli, faollashtirish choralarini ko'rib chiqish zarur. Takliflar kanalning o'sishini tezlashtirish va auditoriyani jalb qilishga qaratilgan.",
+  "sana": "2026-09-20",
+  "holat": "Kanal a'zolari: 17 ta\nKecha bilan farq: +0\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
+  "tahlil": "Kanal o'sishi sekinlashgan, shuning uchun faollashtirish choralarini ko'rish kerak. Auditoriya hali ham kichik, lekin ularning qiziqishlari va ehtiyojlari aniqlash zarur.",
   "takliflar": [
     {
-      "nom": "Startap bosqichlari so'rovnomasi",
-      "sabab": "Kanal a'zolari soni sekin o'sib bormoqda, o'rtacha kuniga +0.0 ta yangi a'zo qo'shilib bormoqda. So'rovnoma orqali a'zolarni faollashtirish va ularning startap bosqichlarini bilib, keyingi postlarni shu bosqichlarga moslashtirish mumkin.",
+      "nom": "Qaysi bosqichdasiz",
+      "sabab": "Kanal a'zolari soni 17 ta, o'sish tezligi sekin, shuning uchun ularning startap bosqichlarini bilib, ularning ehtiyojlariga mos ravishda kontent taqdim etish kerak.",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "A'zolar faollashadi va startap bosqichlari haqida ma'lumotlar to'plab, keyingi postlarni shu bosqichlarga moslashtirish imkoniyati paydo bo'ladi.",
+      "kutilgan": "Auditoriya startap bosqichlari haqida ma'lumot beradi, bu kontentni ularning ehtiyojlariga moslashtirish imkonini beradi.",
       "bajarildi": false
     },
     {
-      "nom": "Bepul qo'llanma e'loni",
-      "sabab": "Bepul qo'llanma e'loni orqali yangi a'zolarni jalb qilish mumkin. Qo'llanma startapchilar uchun foydali bo'lishi kerak.",
+      "nom": "Startap g'oyalari uchun qo'llanma",
+      "sabab": "Auditoriya startap g'oyalari haqida qiziqib turibdi, shuning uchun ular uchun bepul qo'llanma taqdim etish mumkin.",
       "amal": "post",
-      "matn": "Bepul startap g'oyalari qo'llanmasi! Biznesingizni qanday boshlash haqida bilib oling. Botga yozilganlarga bepul yuklab olish imkoniyati.",
+      "matn": "Bepul startap g'oyalari uchun qo'llanma! Biz sizga startap g'oyasini ishlab chiqish va amalga oshirish bo'yicha qo'llanmani taqdim etamiz. Botga yozishingiz kifaya.",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Yangi a'zolar jalb qilinadi va bepul qo'llanmani yuklab, kanalga qiziqish ortadi.",
+      "kutilgan": "Auditoriya bepul qo'llanmani oladi, bu ularning startap g'oyalari haqida bilishlariga va kanalga jalb qilishiga olib keladi.",
       "bajarildi": false
     },
     {
-      "nom": "Startap g'oyalari rasm-post",
-      "sabab": "Rasm-post orqali startap g'oyalari haqida qisqa va foydali ma'lumotlar berish mumkin. Rasmni chizish orqali a'zolarning diqqatini jalb qilish mumkin.",
-      "amal": "rasm",
-      "matn": "Startap g'oyalari: qaysi g'oyalar hozir qizib turibdi?",
-      "savol": "3d isometric illustration of a small team brainstorming",
+      "nom": "Startap kursi darslari",
+      "sabab": "Auditoriya startap kursi darslariga qiziqib turibdi, shuning uchun ularni ko'proq taqdim etish kerak.",
+      "amal": "post",
+      "matn": "Startap kursi darslari! Biz sizga startap kursi darslarini taqdim etamiz. Darslarimiz startap asoslari, mijozlar, MVP, sotuv, narx, marketing, mahsulot, raqamlar, huquq va soliq, jamoa, sarmoya, operatsiya haqida.",
+      "savol": "",
       "variantlar": [],
-      "kutilgan": "A'zolar diqqatini jalb qilish va startap g'oyalari haqida qiziqish ortadi.",
+      "kutilgan": "Auditoriya startap kursi darslariga qiziqib, ularni o'rganadi, bu kanal o'sishiga olib keladi.",
       "bajarildi": false
     }
   ],
