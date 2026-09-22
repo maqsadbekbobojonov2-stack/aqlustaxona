@@ -1,11 +1,11 @@
 {
-  "sana": "2026-09-21",
+  "sana": "2026-09-22",
   "holat": "Kanal a'zolari: 17 ta\nKecha bilan farq: +0\nOxirgi hafta: +1 (kuniga o'rtacha +0.1)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni sekin o'sib bormoqda, o'rtacha kuniga +0.1 ta yangi a'zo qo'shilib bormoqda. Oxirgi hafta +1 ta yangi a'zo qo'shildi. Shu sababli, kanalga yangi a'zolar jalb qilish va ularni faollashtirish uchun qo'shimcha choralar ko'rish kerak.",
+  "tahlil": "Kanal a'zolari soni o'sishi sekinlashgan, oxirgi hafta o'rtacha +0.1, eng yaxshi kun +1, eng yomon kun -3. Shu sababdan, faollashtirish va auditoriya bilan aloqa o'rnatishga qaratilgan takliflar kerak.",
   "takliflar": [
     {
-      "nom": "Startap bosqichi so'rovnomasi",
-      "sabab": "Kanal a'zolari soni sekin o'sib bormoqda, shu sababli ularning startap bosqichini bilish va ularni faollashtirish uchun so'rovnoma chiqarish kerak.",
+      "nom": "Qaysi bosqichdasiz",
+      "sabab": "Kanal a'zolari soni o'sishi sekinlashgan, so'rovnoma orqali ularning ehtiyojlarini bilib, kontentni shu yo'nalishda tuzish mumkin",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "So'rovnomaga javob bergan a'zolar soni ortib, ularni faollashtirish imkoniyati paydo bo'ladi.",
+      "kutilgan": "Auditoriya bilan aloqa o'rnatish va ularning ehtiyojlarini bilish",
       "bajarildi": false
     },
     {
       "nom": "Startap g'oyalari uchun qo'llanma",
-      "sabab": "Kanal a'zolari soni sekin o'sib bormoqda, shu sababli ularni jalb qilish va ularni faollashtirish uchun bepul qo'llanma taklif qilish kerak.",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, shu sababdan, bepul qo'llanma orqali odamlarni jalb qilish mumkin",
       "amal": "post",
-      "matn": "Bepul startap g'oyalari uchun qo'llanma! Unda startap g'oyasini ishlab chiqish, MVP qilish va sotuvni oshirish bo'yicha maslahatlar berilgan. Qo'llanmani botga yozilish orqali olishingiz mumkin.",
+      "matn": "Bepul startap g'oyalari qo'llanmasi! Botga yozing va o'zingizning startap g'oyangizni amalga oshiring!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Qo'llanmani olish uchun botga yozilgan a'zolar soni ortib, ularni faollashtirish imkoniyati paydo bo'ladi.",
+      "kutilgan": "Bepul qo'llanma orqali odamlarni jalb qilish va ularning ehtiyojlarini bilish",
       "bajarildi": false
     },
     {
-      "nom": "Kanal rejasini o'zgartirish",
-      "sabab": "Kanal a'zolari soni sekin o'sib bormoqda, shu sababli kanal rejasini o'zgartirish va yangi postlar chiqarish kerak.",
+      "nom": "Kanal rejalashtirish",
+      "sabab": "Kanalga chiqariladigan postlar vaqtini rejalashtirish orqali, auditoriya bilan aloqa o'rnatish va ularning ehtiyojlarini bilish mumkin",
       "amal": "jadval",
-      "matn": "Kanal rejasini o'zgartirish va yangi postlar chiqarish",
+      "matn": "",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Kanal rejasini o'zgartirish va yangi postlar chiqarish orqali a'zolar soni ortib, ularni faollashtirish imkoniyati paydo bo'ladi.",
+      "kutilgan": "Kanal rejalashtirish orqali, auditoriya bilan aloqa o'rnatish va ularning ehtiyojlarini bilish",
       "bajarildi": false
     }
   ],
