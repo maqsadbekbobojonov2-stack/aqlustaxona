@@ -1,11 +1,11 @@
 {
-  "sana": "2026-09-23",
+  "sana": "2026-09-24",
   "holat": "Kanal a'zolari: 17 ta\nKecha bilan farq: +0\nOxirgi hafta: +1 (kuniga o'rtacha +0.1)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni 17 ta, o'sish sekinlashgan, shuning uchun faollashtirish vositalaridan foydalanish kerak. Auditoriya startap va biznes mavzulariga qiziqish bildirayotganini ko'rsatadi.",
+  "tahlil": "Kanal a'zolari soni sekin o'sib bormoqda, shuning uchun faollashtirish choralarini ko'rish kerak. Auditoriya startap va biznes mavzulariga qiziqish bildirayotganligi aniqlandi.",
   "takliflar": [
     {
-      "nom": "Startap bosqichlari so'rovnomasi",
-      "sabab": "Kanal a'zolari soni 17 ta, o'sish sekinlashgan, shuning uchun faollashtirish vositalaridan foydalanish kerak. So'rovnoma orqali a'zolarning startap bosqichlarini bilib, keyingi postlarni ularning ehtiyojlari asosida tayyorlash mumkin.",
+      "nom": "Startap bosqichlari",
+      "sabab": "Kanal a'zolari soni sekin o'sib bormoqda, shuning uchun ularning startap bosqichlarini bilish kerak. Shu maqsadda so'rovnoma chiqarish zarur.",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "A'zolarning startap bosqichlari haqidagi ma'lumotlar to'plab, keyingi postlarni ularning ehtiyojlari asosida tayyorlash",
+      "kutilgan": "Auditoriya startap bosqichlari haqida ma'lumot beradi.",
       "bajarildi": false
     },
     {
-      "nom": "Startap g'oyalari ro'yxati",
-      "sabab": "Auditoriya startap va biznes mavzulariga qiziqish bildirayotganini ko'rsatadi. Foydali ro'yxat orqali a'zolarning qiziqishini uyg'otish mumkin.",
+      "nom": "Startap g'oyalari",
+      "sabab": "Auditoriya startap g'oyalari qizib turibdi, shuning uchun startap g'oyalari haqida post chiqarish zarur.",
       "amal": "post",
-      "matn": "Startap g'oyalari ro'yxati:\n1. E-commerce platformasi\n2. Mobil ilovalar\n3. Bulut xizmatlari\n4. Kiberxavfsizlik\n5. Ma'lumotlar analitikasi",
+      "matn": "Startap g'oyalari haqida sizning fikringiz nima? Biz startap g'oyalari haqida yangi post chiqaramiz.",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "A'zolarning qiziqishini uyg'otish va ularning startap g'oyalari haqidagi fikrlarini bilish",
+      "kutilgan": "Auditoriya startap g'oyalari haqida muhokama qiladi.",
       "bajarildi": false
     },
     {
-      "nom": "Startap muvaffaqiyati haqidagi rasm",
-      "sabab": "Rasmlar orqali a'zolarning diqqatini jalb qilish mumkin. Startap muvaffaqiyati haqidagi rasm orqali ularning motivatsiyasini oshirish mumkin.",
-      "amal": "rasm",
-      "matn": "Startap muvaffaqiyati haqidagi rasm",
-      "savol": "3d isometric illustration of a small team celebrating first sale, warm light",
+      "nom": "Bepul qo'llanma",
+      "sabab": "Auditoriya startap va biznes mavzulariga qiziqish bildirayotganligi aniqlandi, shuning uchun bepul qo'llanma chiqarish zarur.",
+      "amal": "post",
+      "matn": "Bepul startap qo'llanmasi! Biz sizga bepul startap qo'llanmasi taklif qilamiz. Qo'llanma startap asoslari, biznes reja tuzish va sarmoya jalb qilish haqida ma'lumot beradi.",
+      "savol": "",
       "variantlar": [],
-      "kutilgan": "A'zolarning diqqatini jalb qilish va ularning motivatsiyasini oshirish",
+      "kutilgan": "Auditoriya bepul qo'llanmani yuklab oladi.",
       "bajarildi": false
     }
   ],
