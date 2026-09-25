@@ -1,14 +1,14 @@
 {
-  "sana": "2026-09-24",
+  "sana": "2026-09-25",
   "holat": "Kanal a'zolari: 17 ta\nKecha bilan farq: +0\nOxirgi hafta: +1 (kuniga o'rtacha +0.1)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni sekin o'sib bormoqda, shuning uchun faollashtirish choralarini ko'rish kerak. Auditoriya startap va biznes mavzulariga qiziqish bildirayotganligi aniqlandi.",
+  "tahlil": "Kanal o'sishi sekinlashgan, oxirgi hafta +1, eng yaxshi kun +1. Shu sababli, kanalga faollashtirish vositalaridan foydalanish kerak. Auditoriya startap, biznes, texnologiya sohasida qizib turibdi.",
   "takliflar": [
     {
-      "nom": "Startap bosqichlari",
-      "sabab": "Kanal a'zolari soni sekin o'sib bormoqda, shuning uchun ularning startap bosqichlarini bilish kerak. Shu maqsadda so'rovnoma chiqarish zarur.",
+      "nom": "Startap bosqichi so'rovnomasi",
+      "sabab": "Kanal a'zolari soni 17 ta, o'sish sekin, so'rovnoma kanali faollashtiradi.",
       "amal": "sorovnoma",
       "matn": "",
-      "savol": "Startapingiz hozir qaysi bosqichda?",
+      "savol": "Sizning startap bosqichingiz qaysi?",
       "variantlar": [
         "Hali faqat g'oya",
         "MVP qilyapman",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Auditoriya startap bosqichlari haqida ma'lumot beradi.",
+      "kutilgan": "Kanal a'zolari faollashadi, kelgusi postlarga qiziqish ortadi",
       "bajarildi": false
     },
     {
-      "nom": "Startap g'oyalari",
-      "sabab": "Auditoriya startap g'oyalari qizib turibdi, shuning uchun startap g'oyalari haqida post chiqarish zarur.",
+      "nom": "Startap g'oyalari posti",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, shu mavzuda post chiqarish kanalga jalb qiladi.",
       "amal": "post",
-      "matn": "Startap g'oyalari haqida sizning fikringiz nima? Biz startap g'oyalari haqida yangi post chiqaramiz.",
+      "matn": "Sizning startap g'oyangiz nima? Biz startap g'oyalari haqida post chiqaramiz. Yozib qoldiring!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Auditoriya startap g'oyalari haqida muhokama qiladi.",
+      "kutilgan": "Kanal a'zolari soni ortadi, postga qiziqish ortadi",
       "bajarildi": false
     },
     {
-      "nom": "Bepul qo'llanma",
-      "sabab": "Auditoriya startap va biznes mavzulariga qiziqish bildirayotganligi aniqlandi, shuning uchun bepul qo'llanma chiqarish zarur.",
-      "amal": "post",
-      "matn": "Bepul startap qo'llanmasi! Biz sizga bepul startap qo'llanmasi taklif qilamiz. Qo'llanma startap asoslari, biznes reja tuzish va sarmoya jalb qilish haqida ma'lumot beradi.",
+      "nom": "Kanal rejasini o'zgartirish",
+      "sabab": "Kanal o'sishi sekinlashgan, rejalashtirilgan postlar vaqtini o'zgartirish kerak.",
+      "amal": "jadval",
+      "matn": "Kanal rejasini o'zgartirish uchun takliflar qabul qilinmoqda.",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Auditoriya bepul qo'llanmani yuklab oladi.",
+      "kutilgan": "Kanal postlari vaqti o'zgartirilgach, a'zolar soni ortadi",
       "bajarildi": false
     }
   ],
