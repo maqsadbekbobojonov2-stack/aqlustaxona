@@ -623,5 +623,13 @@
     "tur": "stories",
     "slot": "ertalab",
     "day": 35
+  },
+  {
+    "date": "2026-09-26 20:18",
+    "topic": "O‘zbekiston sun’iy intellektni rivojlantirish bo‘yicha yangi tavsiyalar oldi",
+    "title": "O'zbekistonda AI rivoji bo'yicha yangi tavsiyalar berildi",
+    "message_id": 100,
+    "tur": "yangilik",
+    "slot": "kechqurun"
   }
 ]
