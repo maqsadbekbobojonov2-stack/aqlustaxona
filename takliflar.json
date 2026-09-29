@@ -1,11 +1,11 @@
 {
-  "sana": "2026-09-28",
+  "sana": "2026-09-29",
   "holat": "Kanal a'zolari: 17 ta\nKecha bilan farq: +0\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni sekinlashgan, oxirgi hafta +0, eng yaxshi kun +1, eng yomon kun -3. Shu sababli, faollashtirish choralarini ko'rish kerak. Auditoriya startap, biznes, texnologiya sohasida qiziqish bildiradi.",
+  "tahlil": "Kanal a'zolari soni 17 ta, o'sish sekinlashgan. Shu sababli, faollashtirish vositalaridan foydalanish kerak. Takliflar quyidagilardan iborat: so'rovnoma, qo'shimcha post va rasm chiqarish.",
   "takliflar": [
     {
       "nom": "Qaysi bosqichdasiz",
-      "sabab": "Kanal a'zolari soni sekinlashgan, so'rovnoma orqali ularning qiziqishini bilib, kontentni moslashtirish mumkin. Shu bilan birga, so'rovnoma Telegramda kanalni yuqoriroq ko'rsatishga yordam beradi.",
+      "sabab": "Kanal a'zolari soni 17 ta, o'sish sekinlashgan. So'rovnoma orqali a'zolarni faollashtirish va ularning startap bosqichlarini bilish mumkin.",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Kanal a'zolarining faolligi ortadi",
+      "kutilgan": "A'zolarni faollashtirish va ularning startap bosqichlarini bilish",
       "bajarildi": false
     },
     {
       "nom": "Startap g'oyalari",
-      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, shu sababli, startap g'oyalari haqida post chiqarish kanalga yangi a'zolar jalb qilishga yordam beradi.",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi. Qo'shimcha post orqali a'zolarni jalb qilish mumkin.",
       "amal": "post",
-      "matn": "Startap g'oyalari haqida gap ketayotgan edi. Sizning startap g'oyangiz nima? Biz bilan ulashing va boshqalar bilan baham ko'ring!",
+      "matn": "Startap g'oyalari haqida bilib oling! Biz sizga startap g'oyalari haqida ma'lumot beramiz. Startap g'iyalarini bilish uchun botga yoziling!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Yangi a'zolar jalb qilinadi",
+      "kutilgan": "A'zolarni jalb qilish va startap g'oyalari haqida ma'lumot berish",
       "bajarildi": false
     },
     {
-      "nom": "Kanal rejasini bildirish",
-      "sabab": "Kanal a'zolari soni sekinlashgan, shu sababli, ularni jalb qilish va saqlab qolish uchun kanal rejasini bildirish kerak.",
-      "amal": "post",
-      "matn": "Kanalimiz rejasini bilib olasiz! Har kuni startap hikoyalari, startap kursi va yangiliklar. Biz bilan birga bo'ling va startap dunyosini kuzating!",
-      "savol": "",
+      "nom": "Startap bosqichlari",
+      "sabab": "Startap bosqichlari haqida ma'lumot berish kerak. Rasm orqali a'zolarni jalb qilish mumkin.",
+      "amal": "rasm",
+      "matn": "Startap bosqichlari haqida bilib oling!",
+      "savol": "Startap bosqichlari rasmi",
       "variantlar": [],
-      "kutilgan": "Kanal a'zolari soni ortadi",
+      "kutilgan": "A'zolarni jalb qilish va startap bosqichlari haqida ma'lumot berish",
       "bajarildi": false
     }
   ],
