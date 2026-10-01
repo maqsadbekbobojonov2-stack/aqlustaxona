@@ -1,14 +1,14 @@
 {
-  "sana": "2026-09-30",
-  "holat": "Kanal a'zolari: 17 ta\nKecha bilan farq: +0\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni sekinlashgan, shuning uchun faollashtirish choralarini ko'rish kerak. Auditoriya startap va biznes mavzulariga qiziqish bildirayotganini, lekin faqat 4 ta foydalanuvchi botga yozilganini ko'rib chiqdim. Shu sababli, faollashtirish va jalb qilish uchun quyidagi takliflarni beraman.",
+  "sana": "2026-10-01",
+  "holat": "Kanal a'zolari: 16 ta\nKecha bilan farq: -1\nOxirgi hafta: -1 (kuniga o'rtacha -0.1)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
+  "tahlil": "Kanal a'zolari soni sekinlashgan, shuning uchun faollashtirish choralarini ko'rish kerak. Auditoriya startap va biznesga qiziqish bildirayotganligi sababli, ularning ehtiyojlari va qiziqishlariga mos ravishda takliflar tayyorlandi.",
   "takliflar": [
     {
-      "nom": "Qaysi bosqichdasiz?",
-      "sabab": "Kanal a'zolari soni sekinlashgan, shuning uchun ularning startap bosqichlarini bilish va mos ravishda kontent tayyorlash kerak. Shu bilan birga, so'rovnoma kanalni faollashtirishga yordam beradi.",
+      "nom": "Startap bosqichlari",
+      "sabab": "Kanal a'zolari soni sekinlashgan, shuning uchun ularning startap bosqichlarini bilish kerak",
       "amal": "sorovnoma",
       "matn": "",
-      "savol": "Startapingiz hozir qaysi bosqichda?",
+      "savol": "Sizning startapingiz hozir qaysi bosqichda?",
       "variantlar": [
         "Hali faqat g'oya",
         "MVP qilyapman",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Auditoriya startap bosqichlarini bilib, mos ravishda kontent tayyorlash imkonini beradi",
+      "kutilgan": "Auditoriya startap bosqichlarini bilib, ularning ehtiyojlari va qiziqishlariga mos ravishda kontent tayyorlash",
       "bajarildi": false
     },
     {
       "nom": "Startap g'oyalari",
-      "sabab": "Auditoriya startap mavzulariga qiziqish bildirayotganini ko'rib, startap g'oyalari haqida post chiqarish kerak. Bu post orqali auditoriyani jalb qilish va ularning startap g'oyalari haqida bilish imkonini beradi.",
+      "sabab": "Auditoriya startap g'oyalari qizib turibdi, shuning uchun ularning g'oyalari haqida so'rovnomalar o'tkazish kerak",
       "amal": "post",
-      "matn": "Startap g'oyalari haqida o'ylayapsizmi? Biz bilan startap g'oyalarizni baham ko'ring!",
+      "matn": "Startap g'oyalari haqida so'rovnomalar o'tkazamiz. Sizning startap g'oyangiz nima? Yozib qoldiring!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Auditoriya startap g'oyalari haqida baham ko'rishadi va kanalga jalb qilinadi",
+      "kutilgan": "Auditoriya startap g'oyalari haqida so'rovnomalar o'tkazib, ularning ehtiyojlari va qiziqishlariga mos ravishda kontent tayyorlash",
       "bajarildi": false
     },
     {
-      "nom": "Bepul qo'llanma",
-      "sabab": "Auditoriya startap va biznes mavzulariga qiziqish bildirayotganini ko'rib, bepul qo'llanma e'loni chiqarish kerak. Bu orqali auditoriyani jalb qilish va ularning startap g'oyalari haqida bilish imkonini beradi.",
-      "amal": "post",
-      "matn": "Bepul startap qo'llanmasi! Biz bilan startap g'oyalarizni baham ko'ring va bepul qo'llanmani yuklab oling!",
-      "savol": "",
+      "nom": "Startap kursi",
+      "sabab": "Auditoriya startap kursi haqida qiziqish bildirayotganligi sababli, ularning ehtiyojlari va qiziqishlariga mos ravishda startap kursi haqida kontent tayyorlash kerak",
+      "amal": "rasm",
+      "matn": "Startap kursi haqida kontent tayyorlaymiz. Sizning startap kursi haqida qanday fikringiz?",
+      "savol": "startap kursi haqida qanday fikringiz?",
       "variantlar": [],
-      "kutilgan": "Auditoriya bepul qo'llanmani yuklab oladi va kanalga jalb qilinadi",
+      "kutilgan": "Auditoriya startap kursi haqida kontent tayyorlab, ularning ehtiyojlari va qiziqishlariga mos ravishda kontent tayyorlash",
       "bajarildi": false
     }
   ],
