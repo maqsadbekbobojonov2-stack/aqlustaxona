@@ -1,14 +1,14 @@
 {
-  "sana": "2026-10-01",
-  "holat": "Kanal a'zolari: 16 ta\nKecha bilan farq: -1\nOxirgi hafta: -1 (kuniga o'rtacha -0.1)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni sekinlashgan, shuning uchun faollashtirish choralarini ko'rish kerak. Auditoriya startap va biznesga qiziqish bildirayotganligi sababli, ularning ehtiyojlari va qiziqishlariga mos ravishda takliflar tayyorlandi.",
+  "sana": "2026-10-02",
+  "holat": "Kanal a'zolari: 16 ta\nKecha bilan farq: +0\nOxirgi hafta: -1 (kuniga o'rtacha -0.1)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
+  "tahlil": "Kanalning o'sishi sekinlashgan, oxirgi hafta -1 ta a'zo, eng yaxshi kun 2026-09-03 (+1) bo'lgan. Shu sababdan, faollashtirish va auditoriya bilan aloqani mustahkamlashga qaratilgan takliflar kerak.",
   "takliflar": [
     {
-      "nom": "Startap bosqichlari",
-      "sabab": "Kanal a'zolari soni sekinlashgan, shuning uchun ularning startap bosqichlarini bilish kerak",
+      "nom": "Qaysi bosqichdasiz",
+      "sabab": "Kanalda 16 ta a'zo bor, ularning faoliyat bosqichini bilish orqali kontentni ularning ehtiyojiga moslashtirish mumkin.",
       "amal": "sorovnoma",
       "matn": "",
-      "savol": "Sizning startapingiz hozir qaysi bosqichda?",
+      "savol": "Startapingiz hozir qaysi bosqichda?",
       "variantlar": [
         "Hali faqat g'oya",
         "MVP qilyapman",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Auditoriya startap bosqichlarini bilib, ularning ehtiyojlari va qiziqishlariga mos ravishda kontent tayyorlash",
+      "kutilgan": "Auditoriya bilan aloqani mustahkamlash va ularning ehtiyojiga mos kontent tayyorlash",
       "bajarildi": false
     },
     {
-      "nom": "Startap g'oyalari",
-      "sabab": "Auditoriya startap g'oyalari qizib turibdi, shuning uchun ularning g'oyalari haqida so'rovnomalar o'tkazish kerak",
+      "nom": "Startap g'oyalari uchun 5 ta savol",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, shu sababdan ularning g'oyalari haqida savollar berish orqali ularni jalb qilish mumkin.",
       "amal": "post",
-      "matn": "Startap g'oyalari haqida so'rovnomalar o'tkazamiz. Sizning startap g'oyangiz nima? Yozib qoldiring!",
+      "matn": "Startap g'iyalar uchun 5 ta savol:\n1. Startap nima?\n2. Startap g'oyasi qanday paydo bo'ladi?\n3. Startap g'oyasini qanday amalga oshirish mumkin?\n4. Startap g'oyasi uchun mablag' qanday topiladi?\n5. Startap g'oyasi muvaffaqiyatli bo'lishi uchun nima kerak?",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Auditoriya startap g'oyalari haqida so'rovnomalar o'tkazib, ularning ehtiyojlari va qiziqishlariga mos ravishda kontent tayyorlash",
+      "kutilgan": "Auditoriya bilan aloqani mustahkamlash va ularning ehtiyojiga mos kontent tayyorlash",
       "bajarildi": false
     },
     {
-      "nom": "Startap kursi",
-      "sabab": "Auditoriya startap kursi haqida qiziqish bildirayotganligi sababli, ularning ehtiyojlari va qiziqishlariga mos ravishda startap kursi haqida kontent tayyorlash kerak",
-      "amal": "rasm",
-      "matn": "Startap kursi haqida kontent tayyorlaymiz. Sizning startap kursi haqida qanday fikringiz?",
-      "savol": "startap kursi haqida qanday fikringiz?",
+      "nom": "Bepul startap g'oyalari kitobi",
+      "sabab": "Bepul kitob orqali auditoriyani jalb qilish va ularning ehtiyojiga mos kontent tayyorlash mumkin.",
+      "amal": "post",
+      "matn": "Bepul startap g'oyalari kitobi!\nKitobda startap g'oyalari haqida 10 ta foydali ma'lumot berilgan.\nBotga yozishingiz mumkin.",
+      "savol": "",
       "variantlar": [],
-      "kutilgan": "Auditoriya startap kursi haqida kontent tayyorlab, ularning ehtiyojlari va qiziqishlariga mos ravishda kontent tayyorlash",
+      "kutilgan": "Auditoriya bilan aloqani mustahkamlash va ularning ehtiyojiga mos kontent tayyorlash",
       "bajarildi": false
     }
   ],
