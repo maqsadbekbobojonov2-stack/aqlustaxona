@@ -745,5 +745,14 @@
     "tur": "stories",
     "slot": "ertalab",
     "day": 42
+  },
+  {
+    "date": "2026-10-03 20:09",
+    "topic": "Startap kursi · 23-dars · 📘 QO'LDA BAJARISH USULI",
+    "title": "📘 QO'LDA BAJARISH USULI",
+    "message_id": 115,
+    "tur": "kurs",
+    "slot": "kechqurun",
+    "dars": 23
   }
 ]
