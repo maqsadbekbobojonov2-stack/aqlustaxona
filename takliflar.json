@@ -1,11 +1,11 @@
 {
-  "sana": "2026-10-03",
-  "holat": "Kanal a'zolari: 16 ta\nKecha bilan farq: +0\nOxirgi hafta: -1 (kuniga o'rtacha -0.1)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni o'sishi sekinlashgan, oxirgi hafta -1, eng yaxshi kun 2026-09-03 (+1), eng yomon kun 2026-09-01 (-3). Shu sababli, faollashtirish vositalaridan foydalanish kerak.",
+  "sana": "2026-10-04",
+  "holat": "Kanal a'zolari: 15 ta\nKecha bilan farq: -1\nOxirgi hafta: -2 (kuniga o'rtacha -0.3)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
+  "tahlil": "Kanal a'zolari soni sekinlashgan, shuning uchun faollashtirish vositalaridan foydalanish kerak. Auditoriya startap va biznesga qiziqishi aniqlangan.",
   "takliflar": [
     {
       "nom": "Qaysi bosqichdasiz",
-      "sabab": "Kanal a'zolari soni o'sishi sekinlashgan, 22 a'zoda kuniga o'rtacha +1, so'rovnoma eng arzon o'sish vositasi",
+      "sabab": "Kanal a'zolari soni sekinlashgan, shuning uchun ularning startap bosqichlarini bilish kerak. 22 a'zoda kuniga o'rtacha +1 — bu juda kam.",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Kanal a'zolari soni o'sishi tezlanadi",
+      "kutilgan": "Auditoriya startap bosqichlarini bilib, keyingi postlarni moslashtirish imkoniyati paydo bo'ladi",
       "bajarildi": false
     },
     {
       "nom": "Bepul qo'llanma",
-      "sabab": "O'zbekistonda startap va biznes bo'yicha bepul qo'llanmalarga qiziqish yuqori, 3 ta botga yozilgan a'zo bepul qo'llanma olgan",
+      "sabab": "Auditoriya startap va biznesga qiziqishi aniqlangan, shuning uchun bepul qo'llanma taklif qilish kerak. 4 ta botga yozilgan a'zo bor.",
       "amal": "post",
-      "matn": "Bepul startap qo'llanmasi! Biznesingizni qanday o'stirish haqida bilib oling. Botga yoziling va bepul qo'llanmani olasiz!",
+      "matn": "Bepul startap qo'llanmasi! Botga yoziling va startapingizni rivojlantiring!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Botga yozilgan a'zolar soni o'sadi",
+      "kutilgan": "Bepul qo'llanmani yuklab olgan a'zolar soni ortadi",
       "bajarildi": false
     },
     {
-      "nom": "Rasm chizish",
-      "sabab": "Rasmlar auditoriyani jalb qilishda muhim rol o'ynaydi, 4 ta a'zo botga yozilgan, lekin ularni jalb qilish uchun yangi rasmlar kerak",
+      "nom": "Rasm bilan post",
+      "sabab": "Auditoriya startap va biznesga qiziqishi aniqlangan, shuning uchun rasm bilan post chiqarish kerak. 15 ta kanal a'zosi bor.",
       "amal": "rasm",
-      "matn": "Startap g'oyalari uchun yangi rasm!",
+      "matn": "Startapingizni rivojlantirish uchun 5 ta maslahat!",
       "savol": "3d isometric illustration of a small team celebrating first sale, warm light",
       "variantlar": [],
-      "kutilgan": "Kanal a'zolari soni o'sishi tezlanadi",
+      "kutilgan": "Rasm bilan post kanal a'zolarini faollashtiradi",
       "bajarildi": false
     }
   ],
