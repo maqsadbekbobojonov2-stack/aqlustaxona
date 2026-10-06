@@ -798,5 +798,13 @@
     "tur": "stories",
     "slot": "ertalab",
     "day": 45
+  },
+  {
+    "date": "2026-10-06 21:10",
+    "topic": "Gazlashtirilmagan hududlar uchun elektr energiyasi imtiyozlari",
+    "title": "Gazsiz hududlarda elektr limiti 350 kVt ga oshdi",
+    "message_id": 121,
+    "tur": "yangilik",
+    "slot": "kechqurun"
   }
 ]
