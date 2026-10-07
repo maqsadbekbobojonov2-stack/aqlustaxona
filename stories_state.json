@@ -1,5 +1,5 @@
 {
- "last_sent": 45,
+ "last_sent": 46,
  "kurs_oxirgi": 24,
  "oxirgi_kechki": "yangilik",
  "sent": [
@@ -227,6 +227,11 @@
    "day": 45,
    "date": "2026-10-06 11:04",
    "message_id": 120
+  },
+  {
+   "day": 46,
+   "date": "2026-10-07 09:06",
+   "message_id": 122
   }
  ]
 }
