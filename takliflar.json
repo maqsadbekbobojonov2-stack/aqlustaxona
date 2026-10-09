@@ -1,11 +1,11 @@
 {
-  "sana": "2026-10-08",
+  "sana": "2026-10-09",
   "holat": "Kanal a'zolari: 15 ta\nKecha bilan farq: +0\nOxirgi hafta: -1 (kuniga o'rtacha -0.1)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni 15 ta, o'sish sekinlashgan. Shu sababdan, faollashtirish vositalaridan foydalanish kerak. Auditoriya startap va biznes mavzulariga qiziqibdi.",
+  "tahlil": "Kanalning o'sishi sekinlashgan, oxirgi hafta -1, eng yaxshi kun +1. Shuning uchun faollashtirish vositalaridan foydalanish kerak. Takliflar kanaldagi auditoriya va ularning qiziqishlari asosida tuzilgan.",
   "takliflar": [
     {
       "nom": "Startap bosqichlari",
-      "sabab": "Kanal a'zolari soni 15 ta, o'sish sekinlashgan. So'rovnoma orqali ularning startap bosqichlarini bilib, keyingi postlarni shu asosda tayyorlash mumkin.",
+      "sabab": "Kanal a'zolari soni 15 ta, o'sish sekinlashgan. So'rovnoma orqali ularning startap bosqichlarini bilib, kelgusi postlarni shu bosqichlarga moslashtirish mumkin.",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Kanal a'zolari soni 20 taga yetishi",
+      "kutilgan": "Auditoriya faollashadi, kelgusi postlar uchun ma'lumot to'plab olinadi",
       "bajarildi": false
     },
     {
       "nom": "Bepul qo'llanma",
-      "sabab": "Auditoriya startap va biznes mavzulariga qiziqibdi. Bepul qo'llanma e'lon qilish orqali ularni jalb qilish mumkin.",
+      "sabab": "Bepul qo'llanma e'lon qilish orqali odamlar botga yozishga majbur qilinadi, shu bilan kanal a'zolari soni oshadi.",
       "amal": "post",
-      "matn": "Bepul startap qo'llanma! Biznesingizni o'stirish uchun 10 ta savol. Yozilish uchun botga yozing!",
+      "matn": "Bepul startap g'oyalari qo'llanmasi! Botga yozing va o'zingizga mos g'oyalarni toping!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Kanal a'zolari soni 25 taga yetishi",
+      "kutilgan": "Kanal a'zolari soni oshadi",
       "bajarildi": false
     },
     {
       "nom": "Startap g'oyalari",
-      "sabab": "Auditoriya startap va biznes mavzulariga qiziqibdi. Startap g'oyalari haqida post chiqarish orqali ularni jalb qilish mumkin.",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi. Muhokama posti orqali odamlar o'z g'oyalari haqida gaplashishadi, shu bilan kanal faollashadi.",
       "amal": "post",
-      "matn": "Startap g'oyalari! Biznesingizni o'stirish uchun 5 ta g'oya. Yozilish uchun botga yozing!",
+      "matn": "Sizning startap g'oyangiz nima? Boshqalarning g'oyalari haqida gapirib, o'z g'oyangizni rivojlantiring!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Kanal a'zolari soni 30 taga yetishi",
+      "kutilgan": "Auditoriya faollashadi, kanal muhokama markaziga aylanadi",
       "bajarildi": false
     }
   ],
