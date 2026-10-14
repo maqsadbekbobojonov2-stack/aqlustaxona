@@ -1,14 +1,14 @@
 {
-  "sana": "2026-10-13",
-  "holat": "Kanal a'zolari: 16 ta\nKecha bilan farq: +1\nOxirgi hafta: +1 (kuniga o'rtacha +0.1)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni juda sekin o'sib bormoqda (+0.1 kuniga), shuning uchun faollashtirish choralarini ko'rish kerak. Auditoriya hali ham kichik, shuning uchun ular bilan aloqani mustahkamlash va ularning manfaatlarini anglash muhim.",
+  "sana": "2026-10-14",
+  "holat": "Kanal a'zolari: 16 ta\nKecha bilan farq: +0\nOxirgi hafta: +1 (kuniga o'rtacha +0.1)\nEng yaxshi kun: 2026-09-03 (+1)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
+  "tahlil": "Kanal a'zolari soni o'sishi sekinlashgan, oxirgi hafta o'rtacha +0.1 ga o'sgan. Shu sababdan, kanalni faollashtirish va auditoriyani jalb qilishga qaratilgan takliflar kerak.",
   "takliflar": [
     {
-      "nom": "Kanal a'zolarining manfaatlarini anglash",
-      "sabab": "Kanal a'zolari soni juda sekin o'sib bormoqda, shuning uchun ularning manfaatlarini anglash va ular bilan aloqani mustahkamlash kerak.",
+      "nom": "Qaysi bosqichdasiz",
+      "sabab": "Kanal a'zolari soni o'sishi sekinlashgan, shu sababdan ularning startap bosqichlarini bilish kerak.",
       "amal": "sorovnoma",
       "matn": "",
-      "savol": "Sizning startap g'oyangiz qaysi bosqichda?",
+      "savol": "Startapingiz hozir qaysi bosqichda?",
       "variantlar": [
         "Hali faqat g'oya",
         "MVP qilyapman",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Kanal a'zolarining manfaatlarini anglash va ular bilan aloqani mustahkamlash",
+      "kutilgan": "Kanal a'zolarining startap bosqichlari haqida ma'lumot olish",
       "bajarildi": false
     },
     {
-      "nom": "Qiziqarli post chiqarish",
-      "sabab": "Kanal a'zolari soni juda sekin o'sib bormoqda, shuning uchun ularni qiziqarli postlar bilan jalb qilish kerak.",
+      "nom": "Startap g'oyalari uchun resurslar",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, shu sababdan ular uchun resurslar taqdim etish kerak.",
       "amal": "post",
-      "matn": "Startap g'oyalarini ishlab chiqish uchun 5 ta eng muhim bosqich",
+      "matn": "Startap g'oyalari uchun resurslar: <b>Startap g'oyalari uchun 10 ta resurs</b>. 1. Startap g'oyalari uchun 10 ta resurs. 2. Startap g'oyalari uchun 10 ta resurs.",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Kanal a'zolarining manfaatlarini anglash va ularni jalb qilish",
+      "kutilgan": "Kanal a'zolari startap g'oyalari uchun resurslarga ega bo'lishadi",
       "bajarildi": false
     },
     {
-      "nom": "Muhim xabarni qadab qo'yish",
-      "sabab": "Kanal a'zolari soni juda sekin o'sib bormoqda, shuning uchun ularning e'tiborini jalb qilish uchun muhim xabarni qadab qo'yish kerak.",
-      "amal": "pin",
-      "matn": "Startap g'oyalarini ishlab chiqish uchun 5 ta eng muhim bosqich",
+      "nom": "Kanalda qanday postlar kerak",
+      "sabab": "Kanal a'zolari soni o'sishi sekinlashgan, shu sababdan ularning fikrlarini bilish kerak.",
+      "amal": "post",
+      "matn": "Kanalda qanday postlar kerak? <b>Kanalda nima ko'rishni istaysiz?</b>. 1. Startap g'oyalari. 2. Startap kursi.",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Kanal a'zolarining e'tiborini jalb qilish va ularni jalb qilish",
+      "kutilgan": "Kanal a'zolari kanalda qanday postlar kerakligi haqida fikrlarini aytishadi",
       "bajarildi": false
     }
   ],
