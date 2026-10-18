@@ -1,14 +1,14 @@
 {
-  "sana": "2026-10-17",
-  "holat": "Kanal a'zolari: 20 ta\nKecha bilan farq: +4\nOxirgi hafta: +5 (kuniga o'rtacha +0.7)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni 20 ta, kuniga o'rtacha +0.7 ta o'sish kuzatilmoqda. Eng yaxshi kun +4 ta, eng yomon kun -3 ta o'sish bo'lgan. Botga yozilganlar soni 4 ta. Shu ma'lumotlarga asoslanib, quyidagi takliflar keltirilmoqda.",
+  "sana": "2026-10-18",
+  "holat": "Kanal a'zolari: 20 ta\nKecha bilan farq: +0\nOxirgi hafta: +5 (kuniga o'rtacha +0.7)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
+  "tahlil": "Kanal a'zolari soni sekin o'sib bormoqda, oxirgi hafta +5 ta yangi a'zo qo'shildi. Eng yaxshi kun +4 ta yangi a'zo bilan 2026-10-17 bo'ldi. Shu sababli, kanal a'zolarini faollashtirish va yangi a'zolarni jalb qilish uchun turli usullar sinab ko'rish kerak.",
   "takliflar": [
     {
-      "nom": "Startap bosqichlari so'rovnomasi",
-      "sabab": "Kanal a'zolari soni 20 ta, kuniga o'rtacha +0.7 ta o'sish kuzatilmoqda. So'rovnoma orqali a'zolarning startap bosqichlari haqida ma'lumot to'plash mumkin.",
+      "nom": "Qaysi bosqichdasiz",
+      "sabab": "Kanal a'zolari soni sekin o'sib bormoqda, shu sababli ularning startap g'oyalari haqidagi ma'lumotlarni bilish zarur. So'rovnoma orqali ularning startap bosqichlarini bilib, kelgusi postlarni shu bosqichlarga moslashtirish mumkin.",
       "amal": "sorovnoma",
       "matn": "",
-      "savol": "Sizning startapingiz hozir qaysi bosqichda?",
+      "savol": "Startapingiz hozir qaysi bosqichda?",
       "variantlar": [
         "Hali faqat g'oya",
         "MVP qilyapman",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "A'zolarning startap bosqichlari haqida ma'lumot to'plash",
+      "kutilgan": "So'rovnoma orqali kanal a'zolarini faollashtirish va ularning startap g'oyalari haqidagi ma'lumotlarni bilish mumkin.",
       "bajarildi": false
     },
     {
-      "nom": "Startap g'oyalari posti",
-      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi. Kanal a'zolari soni 20 ta, ularni jalb qilish uchun startap g'oyalari haqida post chiqarish mumkin.",
+      "nom": "Startap g'oyalari uchun qo'llanma",
+      "sabab": "Kanal a'zolari soni sekin o'sib bormoqda, shu sababli ularning startap g'oyalari haqidagi ma'lumotlarni bilish zarur. BEPUL PDF qo'llanma orqali ularning startap g'oyalari haqidagi ma'lumotlarni bilib, kelgusi postlarni shu g'oyalarga moslashtirish mumkin.",
       "amal": "post",
-      "matn": "Startap g'oyalari haqida siz biladigan eng yaxshi g'oyalar nimalar? Biz ularni kanaldagi boshqa a'zolar bilan bo'lishishni xohlardik.",
+      "matn": "BEPUL Startap g'oyalari uchun qo'llanma! Botga yozilganlarga maxsus qo'llanma taqdim etamiz. Qo'llanma orqali startap g'oyalaringizni ishlab chiqish va amalga oshirish bosqichlarini bilib oling!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "A'zolarning startap g'oyalari haqida fikrlarini bilish",
+      "kutilgan": "BEPUL PDF qo'llanma orqali kanal a'zolarini faollashtirish va ularning startap g'oyalari haqidagi ma'lumotlarni bilish mumkin.",
       "bajarildi": false
     },
     {
-      "nom": "Kanalni reytingda ko'tarish",
-      "sabab": "Kanal a'zolari soni 20 ta, kuniga o'rtacha +0.7 ta o'sish kuzatilmoqda. Kanalni reytingda ko'tarish uchun a'zolarning fikrlarini so'rish mumkin.",
+      "nom": "Startap parklari haqida",
+      "sabab": "O'zbekistonda startap parklari haqida qiziqish bor, shu sababli ushbu mavzuga bag'ishlangan post chiqarish zarur.",
       "amal": "post",
-      "matn": "Kanalni yaxshilash uchun sizning fikringizga ehtiyoj bor. Bizni reytingda ko'tarish uchun nimani qilish kerak deb o'ylaysiz?",
+      "matn": "O'zbekistonda startap parklari haqida ma'lumot! Startap parklari - bu yangi texnologiyalarni ishlab chiqish va amalga oshirish uchun yaratilgan maxsus hududlar. Ushbu parklar orqali startaplar o'z g'oyalari va loyihalarini amalga oshirish imkoniyatiga ega bo'lishadi.",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "A'zolarning kanaldagi ish haqida fikrlarini bilish",
+      "kutilgan": "Startap parklari haqida post orqali kanal a'zolarini faollashtirish va ularning startap g'oyalari haqidagi ma'lumotlarni bilish mumkin.",
       "bajarildi": false
     }
   ],
