@@ -1043,5 +1043,13 @@
     "tur": "stories",
     "slot": "ertalab",
     "day": 59
+  },
+  {
+    "date": "2026-10-20 20:18",
+    "topic": "Prezident har yili 1 million yoshni raqamli yo'nalishlarda o'qitish vazifasini qo'ydi",
+    "title": "Raqamli sohada 1 million yoshlar o'qitiladi",
+    "message_id": 155,
+    "tur": "yangilik",
+    "slot": "kechqurun"
   }
 ]
