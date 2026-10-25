@@ -1,11 +1,11 @@
 {
-  "sana": "2026-10-24",
+  "sana": "2026-10-25",
   "holat": "Kanal a'zolari: 19 ta\nKecha bilan farq: +0\nOxirgi hafta: -1 (kuniga o'rtacha -0.1)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal o'sishi sekinlashgan, oxirgi hafta -1, eng yaxshi kun 2026-10-17 (+4) bo'lgan. Shu sababdan, auditoriyani faollashtirish va jalb qilishga qaratilgan takliflar kerak.",
+  "tahlil": "Kanalning o'sishi sekinlashgan, shuning uchun faollashtirish vositalaridan foydalanish kerak. Auditoriya hali kichik, lekin 4 ta botga yozilgan odam bor, bu ularning qiziqishini ko'rsatadi.",
   "takliflar": [
     {
       "nom": "Qaysi bosqichdasiz",
-      "sabab": "22 a'zoda kuniga o'rtacha +1 — bu juda kam. Kichik kanalda so'rovnoma eng arzon o'sish vositasi",
+      "sabab": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan. So'rovnoma orqali ularning qiziqishini bilib, kelgusi postlarni shu bosqichdagi odamlarga moslashtirish mumkin.",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Auditoriya faollashadi va startap bosqichlari haqida ma'lumot olamiz",
-      "bajarildi": false
-    },
-    {
-      "nom": "Texnologiya sohasida qizib turibdigan mavzular",
-      "sabab": "O'zbekistonda texnologiya sohasida qizib turibdigan mavzular haqida ma'lumot olish uchun qidiruvdan foydalanildi",
-      "amal": "post",
-      "matn": "O'zbekistonda texnologiya sohasida qizib turibdigan mavzular: sun'iy intellekt, agro-startaplar, raqamli yo'nalishlar. Sizlar bu mavzular haqida qanday fikrda?",
-      "savol": "",
-      "variantlar": [],
-      "kutilgan": "Auditoriya texnologiya sohasida qizib turibdigan mavzular haqida muhokama qiladi",
+      "kutilgan": "Auditoriya faollashadi va ularning qiziqishini bilib, postlarni moslashtirish imkoniyati paydo bo'ladi",
       "bajarildi": false
     },
     {
       "nom": "Bepul qo'llanma",
-      "sabab": "Botga yozilganlar soni 4 ta, bepul qo'llanma e'loni qilish orqali yangi a'zolar jalb qilish mumkin",
+      "sabab": "3 ta odam bepul qo'llanma olgan, bu ularning qiziqishini ko'rsatadi. Bepul qo'llanma e'loni orqali yangi a'zolarni jalb qilish mumkin.",
       "amal": "post",
-      "matn": "Bepul qo'llanma: <b>Startap asoslari</b>. Botga yoziling va startap asoslarini o'rganing!",
+      "matn": "Bepul qo'llanma: Startap g'oyasini qanday amalga oshirish! Botga yozilganlarga maxsus sovg'a. Qo'llanmani olish uchun botga yozing!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Yangi a'zolar jalb qilinadi va bepul qo'llanma e'loni orqali auditoriya kengayadi",
+      "kutilgan": "Yangi a'zolarni jalb qilish va ularning qiziqishini oshirish",
+      "bajarildi": false
+    },
+    {
+      "nom": "Reels ssenariysi",
+      "sabab": "Agro-startaplar va texnologiya sohasida qiziqarli mavzular bor. Reels ssenariysi orqali bu mavzularga oid qisqa va soddalashtirilgan ma'lumotlarni taqdim etish mumkin.",
+      "amal": "post",
+      "matn": "Agro-startaplar uchun 5 ta foydali maslahat! #agrostartap #texnologiya",
+      "savol": "",
+      "variantlar": [],
+      "kutilgan": "Auditoriya qiziqishi oshadi va kanalgacha yangi a'zolar keladi",
       "bajarildi": false
     }
   ],
