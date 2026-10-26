@@ -1,11 +1,11 @@
 {
-  "sana": "2026-10-25",
+  "sana": "2026-10-26",
   "holat": "Kanal a'zolari: 19 ta\nKecha bilan farq: +0\nOxirgi hafta: -1 (kuniga o'rtacha -0.1)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanalning o'sishi sekinlashgan, shuning uchun faollashtirish vositalaridan foydalanish kerak. Auditoriya hali kichik, lekin 4 ta botga yozilgan odam bor, bu ularning qiziqishini ko'rsatadi.",
+  "tahlil": "Kanal a'zolari soni sekinlashgan, oxirgi hafta -1, eng yaxshi kun +4, eng yomon kun -3. Shu sababdan, faollashtirish choralarini ko'rish kerak. Takliflar kanalning o'sishini tezlashtirishga qaratilgan.",
   "takliflar": [
     {
       "nom": "Qaysi bosqichdasiz",
-      "sabab": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan. So'rovnoma orqali ularning qiziqishini bilib, kelgusi postlarni shu bosqichdagi odamlarga moslashtirish mumkin.",
+      "sabab": "Kanal a'zolari soni sekinlashgan, 22 a'zoda kuniga o'rtacha +1, so'rovnoma eng arzon o'sish vositasi",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Auditoriya faollashadi va ularning qiziqishini bilib, postlarni moslashtirish imkoniyati paydo bo'ladi",
+      "kutilgan": "Kanal a'zolari soni 10% ga o'sadi",
+      "bajarildi": false
+    },
+    {
+      "nom": "Startap g'oyalari",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, 2026-yilda Telegram kanallarini o'stirishning eng samarali usullari qidrilmoqda",
+      "amal": "post",
+      "matn": "Sizning startap g'oyangiz nima? Biz sizning g'oyangizni tinglab, sizga yordam berishga tayyormiz. #startap_g'oyalari",
+      "savol": "",
+      "variantlar": [],
+      "kutilgan": "Kanal a'zolari soni 5% ga o'sadi",
       "bajarildi": false
     },
     {
       "nom": "Bepul qo'llanma",
-      "sabab": "3 ta odam bepul qo'llanma olgan, bu ularning qiziqishini ko'rsatadi. Bepul qo'llanma e'loni orqali yangi a'zolarni jalb qilish mumkin.",
+      "sabab": "Kanal a'zolari soni sekinlashgan, bepul qo'llanma e'loni odamlarni jalb qilishga yordam beradi",
       "amal": "post",
-      "matn": "Bepul qo'llanma: Startap g'oyasini qanday amalga oshirish! Botga yozilganlarga maxsus sovg'a. Qo'llanmani olish uchun botga yozing!",
+      "matn": "Bepul startap qo'llanmasi! Biz sizga startap asoslarini o'rgatamiz. Botga yozing va bepul qo'llanmaningizni olasiz! #bepul_qo'llanma",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Yangi a'zolarni jalb qilish va ularning qiziqishini oshirish",
-      "bajarildi": false
-    },
-    {
-      "nom": "Reels ssenariysi",
-      "sabab": "Agro-startaplar va texnologiya sohasida qiziqarli mavzular bor. Reels ssenariysi orqali bu mavzularga oid qisqa va soddalashtirilgan ma'lumotlarni taqdim etish mumkin.",
-      "amal": "post",
-      "matn": "Agro-startaplar uchun 5 ta foydali maslahat! #agrostartap #texnologiya",
-      "savol": "",
-      "variantlar": [],
-      "kutilgan": "Auditoriya qiziqishi oshadi va kanalgacha yangi a'zolar keladi",
+      "kutilgan": "Kanal a'zolari soni 8% ga o'sadi",
       "bajarildi": false
     }
   ],
