@@ -1,11 +1,11 @@
 {
-  "sana": "2026-10-26",
-  "holat": "Kanal a'zolari: 19 ta\nKecha bilan farq: +0\nOxirgi hafta: -1 (kuniga o'rtacha -0.1)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni sekinlashgan, oxirgi hafta -1, eng yaxshi kun +4, eng yomon kun -3. Shu sababdan, faollashtirish choralarini ko'rish kerak. Takliflar kanalning o'sishini tezlashtirishga qaratilgan.",
+  "sana": "2026-10-27",
+  "holat": "Kanal a'zolari: 20 ta\nKecha bilan farq: +1\nOxirgi hafta: +1 (kuniga o'rtacha +0.1)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
+  "tahlil": "Kanal a'zolari soni sekin o'sib bormoqda, o'sish tezligi past. Shuning uchun, kanalni faollashtirish va auditoriyani jalb qilish choralarini ko'rish kerak.",
   "takliflar": [
     {
-      "nom": "Qaysi bosqichdasiz",
-      "sabab": "Kanal a'zolari soni sekinlashgan, 22 a'zoda kuniga o'rtacha +1, so'rovnoma eng arzon o'sish vositasi",
+      "nom": "Startap bosqichi so'rovnomasi",
+      "sabab": "Kanal a'zolari soni 20 ta, o'sish tezligi past. So'rovnoma orqali a'zolarning startap bosqichlarini bilib, ularning qiziqishlariga mos postlar chiqarish mumkin.",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Kanal a'zolari soni 10% ga o'sadi",
+      "kutilgan": "A'zolarning startap bosqichlarini bilib, ularning qiziqishlariga mos postlar chiqarish",
       "bajarildi": false
     },
     {
-      "nom": "Startap g'oyalari",
-      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, 2026-yilda Telegram kanallarini o'stirishning eng samarali usullari qidrilmoqda",
+      "nom": "Bepul startap qo'llanmasi",
+      "sabab": "Kanal a'zolari soni 20 ta, o'sish tezligi past. Bepul startap qo'llanmasi orqali a'zolarning qiziqishlarini jalb qilish mumkin.",
       "amal": "post",
-      "matn": "Sizning startap g'oyangiz nima? Biz sizning g'oyangizni tinglab, sizga yordam berishga tayyormiz. #startap_g'oyalari",
+      "matn": "Bepul startap qo'llanmasi! Startap g'oyangizni amalga oshirish uchun kerakli bo'lgan 10 ta savol-javobni o'z ichiga olgan bepul qo'llanmani yuklab oling! https://example.com/startap-qollanmasi",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Kanal a'zolari soni 5% ga o'sadi",
+      "kutilgan": "A'zolarning qiziqishlarini jalb qilish va bepul qo'llanmani yuklab olish",
       "bajarildi": false
     },
     {
-      "nom": "Bepul qo'llanma",
-      "sabab": "Kanal a'zolari soni sekinlashgan, bepul qo'llanma e'loni odamlarni jalb qilishga yordam beradi",
+      "nom": "Agro-startaplar uchun investitsiya",
+      "sabab": "Agro-startaplar uchun investitsiya qizib turibdi. Shuning uchun, agro-startaplar uchun investitsiya haqida post chiqarish mumkin.",
       "amal": "post",
-      "matn": "Bepul startap qo'llanmasi! Biz sizga startap asoslarini o'rgatamiz. Botga yozing va bepul qo'llanmaningizni olasiz! #bepul_qo'llanma",
+      "matn": "Agro-startaplar uchun investitsiya! AgroVentures agrosektordagi startaplarga 500 ming dollargacha investitsiya ajratadi. https://example.com/agro-startap-investitsiya",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Kanal a'zolari soni 8% ga o'sadi",
+      "kutilgan": "Agro-startaplar uchun investitsiya haqida post chiqarish va a'zolarning qiziqishlarini jalb qilish",
       "bajarildi": false
     }
   ],
