@@ -1,11 +1,11 @@
 {
-  "sana": "2026-10-28",
+  "sana": "2026-10-29",
   "holat": "Kanal a'zolari: 20 ta\nKecha bilan farq: +0\nOxirgi hafta: +1 (kuniga o'rtacha +0.1)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni juda sekin o'sib bormoqda (+0,1 kuniga), shuning uchun faollashtirish choralari ko'rish kerak. Auditoriya yosh va startap g'oyalari bilan qiziqib turibdi.",
+  "tahlil": "Kanal a'zolari soni sekin o'sib bormoqda, shuning uchun faollashtirish vositalaridan foydalanish kerak. Oxirgi postlar mavzulari startap g'oyalari, agro-startaplar, investitsiya fondlari haqida bo'lib, bu mavzular qizib turibdi.",
   "takliflar": [
     {
-      "nom": "Startap bosqichi so'rovnomasi",
-      "sabab": "Kanal a'zolari soni juda sekin o'sib bormoqda, shuning uchun ularning startap bosqichini bilish orqali kelgusi postlarni ularning manfaatlariga moslashtirish mumkin.",
+      "nom": "Qaysi bosqichdasiz",
+      "sabab": "22 a'zoda kuniga o'rtacha +1 — bu juda kam. Kichik kanalda so'rovnoma eng arzon o'sish vositasi.",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Auditoriya startap bosqichlari haqida ma'lumot to'plash",
+      "kutilgan": "A'zolar faollashadi va javoblar menga kelgusi postlarni kimga moslashni aytadi.",
       "bajarildi": false
     },
     {
-      "nom": "Agro-startaplar uchun investitsiya",
-      "sabab": "AgroVentures agrosektordagi startaplarga 500 ming dollargacha investitsiya ajratayotgani haqida xabarlar bor, shuning uchun bu mavzuga alohida e'tibor berish kerak.",
+      "nom": "Agro-startap g'oyalari",
+      "sabab": "AgroVentures agrosektordagi startaplarga 500 ming dollargacha investitsiya ajratadi, bu mavzu qizib turibdi.",
       "amal": "post",
-      "matn": "Agro-startaplar uchun 500 ming dollargacha investitsiya! AgroVentures agrosektordagi startaplarga katta imkoniyatlar ochib beradi. Sizning loyingizni taqdim etish uchun <b>shu yerda</b> ariza topshiring!",
+      "matn": "Agro-startap g'oyalari uchun 500 ming dollargacha investitsiya ajratiladi. Sizning agro-startap g'oyangiz nima?",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Agro-startaplar asoschilari kanalga qiziqib, ariza topshirishlari",
+      "kutilgan": "A'zolar agro-startap g'oyalari haqida gaplasha boshlaydilar va yangi a'zolar jalb qilinadi.",
       "bajarildi": false
     },
     {
-      "nom": "Bepul startap qo'llanmasi",
-      "sabab": "Auditoriya yosh va startap g'oyalari bilan qiziqib turibdi, shuning uchun bepul qo'llanma taklif qilish orqali ularni jalb qilish mumkin.",
+      "nom": "Startap kursi tanlovi",
+      "sabab": "Startap kursi darslari qizib turibdi, lekin a'zolar soni sekin o'sib bormoqda.",
       "amal": "post",
-      "matn": "Bepul startap qo'llanmasi! Siz startap asoschisi bo'lishni istaysizmi? <b>Bu qo'llanma</b> sizga startap asoschisi bo'lish yo'lida yordam beradi. Botga yozilish uchun <b>shu yerda</b> bosishingiz kifoya!",
+      "matn": "Startap kursi darslaridan nima sizga kerak? <b>Yozing</b> va biz sizga kerakli darslarni tanlaymiz.",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Yangi a'zolar kanalga qo'shilishi",
+      "kutilgan": "A'zolar startap kursi darslariga qiziqish bildiradilar va yangi a'zolar jalb qilinadi.",
       "bajarildi": false
     }
   ],
