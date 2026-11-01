@@ -1,11 +1,11 @@
 {
-  "sana": "2026-10-31",
-  "holat": "Kanal a'zolari: 19 ta\nKecha bilan farq: -1\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan. Oxirgi hafta +0, eng yaxshi kun +4, eng yomon kun -3. Botga yozilganlar 4 ta, ular do'st taklifi orqali 0 ta, bepul qo'llanma olgan 3 ta. Shu sababdan, auditoriyani jalb qilish va faollashtirishga qaratilgan takliflar kerak.",
+  "sana": "2026-11-01",
+  "holat": "Kanal a'zolari: 19 ta\nKecha bilan farq: +0\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
+  "tahlil": "Kanal a'zolari soni sekinlashgan, oxirgi hafta +0 ga o'sgan. Shu sababli, faollashtirish va auditoriya bilan aloqani mustahkamlash zarur. Takliflar kanalning hozirgi holatiga asoslanib, auditoriyaning qiziqishini uyg'otish va ular bilan aloqani mustahkamlashga qaratilgan.",
   "takliflar": [
     {
-      "nom": "Startap bosqichlari",
-      "sabab": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan, shuning uchun auditoriyani segmentlash va ularning startap bosqichlarini bilish kerak",
+      "nom": "Qaysi bosqichdasiz",
+      "sabab": "Kanal a'zolari soni sekinlashgan, shuning uchun ularning qiziqishini bilish va ular bilan aloqani mustahkamlash kerak. So'rovnoma orqali ularning startap bosqichlarini bilib, kelgusi postlarni shu asosda tayyorlash mumkin.",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Auditoriya segmentlari va ularning startap bosqichlari haqida ma'lumot olish",
+      "kutilgan": "Auditoriya bilan aloqani mustahkamlash va ularning qiziqishini bilish",
       "bajarildi": false
     },
     {
-      "nom": "Qiziqarli mavzular",
-      "sabab": "Oxirgi chiqqan post mavzulari startap, biznes va texnologiya sohasida, shuning uchun auditoriyani qiziqarli mavzular bilan jalb qilish kerak",
+      "nom": "Startap g'oyalari ro'yxati",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, shuning uchun kanalga startap g'oyalari ro'yxatini chiqarish auditoriyani jalb qilishga yordam beradi.",
       "amal": "post",
-      "matn": "Startap va biznes sohasida qanday qiziqarli mavzular bor? Bizning kanalda siz startap hikoyalari, kurslari va yangiliklari haqida ma'lumot olishingiz mumkin.",
+      "matn": "Startap g'oyalari ro'yxati: <b>1. Texnologiya sohasida innovatsion g'oyalar</b>, <b>2. E-commerce loyihalari</b>, <b>3. Moliyaviy xizmatlar</b>. Sizning startap g'oyangiz nima?",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Auditoriya jalb qilinishi va faollashishi",
+      "kutilgan": "Auditoriya bilan aloqani mustahkamlash va ularning qiziqishini uyg'otish",
       "bajarildi": false
     },
     {
-      "nom": "Bepul qo'llanma",
-      "sabab": "Botga yozilganlar 4 ta, ular do'st taklifi orqali 0 ta, bepul qo'llanma olgan 3 ta, shuning uchun bepul qo'llanma taklif qilish kerak",
+      "nom": "Qo'llanma e'loni",
+      "sabab": "Bepul qo'llanma e'loni orqali odamlar kanalga qiziqa boshlaydi va botga yoziladi, shu orqali kanal a'zolari soni o'sadi.",
       "amal": "post",
-      "matn": "Bepul startap qo'llanmasi! Siz startap asoschisi bo'lasizmi? Bizning bepul qo'llanma sizga startap asoschisi bo'lishda yordam beradi.",
+      "matn": "Bepul startap g'oyalari qo'llanmasi! <b>Startap g'oyasini ishga tushirishning 5 bosqichi</b>. Botga yoziling va qo'llanmani oling!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Auditoriya jalb qilinishi va bepul qo'llanma olganlar sonining oshishi",
+      "kutilgan": "Kanal a'zolari soni o'sishi",
       "bajarildi": false
     }
   ],
