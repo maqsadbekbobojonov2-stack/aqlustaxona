@@ -1288,5 +1288,13 @@
     "tur": "stories",
     "slot": "ertalab",
     "day": 73
+  },
+  {
+    "date": "2026-11-03 22:07",
+    "topic": "O'zbekistonda startaplar bo'yicha yangi qonun loyihasi muhokama qilindi",
+    "title": "Sizga nima beradi",
+    "message_id": 189,
+    "tur": "yangilik",
+    "slot": "kechqurun"
   }
 ]
