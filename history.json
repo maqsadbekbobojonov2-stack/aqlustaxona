@@ -1358,5 +1358,13 @@
     "tur": "stories",
     "slot": "ertalab",
     "day": 77
+  },
+  {
+    "date": "2026-11-07 20:19",
+    "topic": "O'zbekiston startaplariga oyiga 10 milliongacha bepul AI-tokenlar beriladi",
+    "title": "O'zbekiston startaplariga oyiga 10 million bepul AI-token beriladi",
+    "message_id": 199,
+    "tur": "yangilik",
+    "slot": "kechqurun"
   }
 ]
