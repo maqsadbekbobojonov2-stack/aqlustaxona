@@ -1,11 +1,11 @@
 {
-  "sana": "2026-11-10",
+  "sana": "2026-11-11",
   "holat": "Kanal a'zolari: 19 ta\nKecha bilan farq: +0\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni 19 ta, o'sish tezligi sekinlashgan. Shu sababdan, faollashtirish va jalb qilishga qaratilgan takliflar beriladi.",
+  "tahlil": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan. Shu sababli, faollashtirish va jalb qilish uchun so'rovnoma va qo'shimcha post chiqarish taklif qilaman.",
   "takliflar": [
     {
-      "nom": "Startap bosqichi",
-      "sabab": "Kanal a'zolari soni 19 ta, o'sish tezligi sekinlashgan, shuning uchun a'zolarni faollashtirish kerak. So'rovnoma orqali ularning startap bosqichini bilib, keyingi postlarni shu bosqichga moslashtirish mumkin.",
+      "nom": "Startap bosqichlari so'rovnomasi",
+      "sabab": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan. So'rovnoma orqali a'zolarni faollashtirish va kelgusi postlarni ularning manfaatlariga moslashtirish mumkin.",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "A'zolar faollashadi va ularning startap bosqichini bilib, keyingi postlarni shu bosqichga moslashtirish mumkin.",
+      "kutilgan": "A'zolar faollashadi va kelgusi postlarni ko'proq ko'radi",
       "bajarildi": false
     },
     {
-      "nom": "Bepul qo'llanma",
-      "sabab": "Kanal a'zolari soni 19 ta, o'sish tezligi sekinlashgan, shuning uchun yangi a'zolarni jalb qilish kerak. Bepul qo'llanma orqali yangi a'zolarni jalb qilish mumkin.",
+      "nom": "Startap g'oyalari posti",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi. Qo'shimcha post orqali a'zolarni jalb qilish va ularning manfaatlariga moslashtirish mumkin.",
       "amal": "post",
-      "matn": "Bepul startap qo'llanmasi! Botga yozilganlarga bepul startap qo'llanmasi taqdim etamiz. Qo'llanmada startap asoslari, biznes modeli va sotuv strategiyalari haqida ma'lumotlar bor.",
+      "matn": "Startap g'oyalari haqida sizning fikringiz nima? Qanday g'oyalarga e'tibor beringiz?",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Yangi a'zolar jalb qilinadi va kanal a'zolari soni ortadi.",
+      "kutilgan": "A'zolar postni ko'proq ko'radi va ularning manfaatlariga moslashtirish mumkin",
       "bajarildi": false
     },
     {
-      "nom": "Startap g'oyalari",
-      "sabab": "Kanal a'zolari soni 19 ta, o'sish tezligi sekinlashgan, shuning uchun a'zolarni faollashtirish kerak. Startap g'oyalari haqida muhokama orqali a'zolarni faollashtirish mumkin.",
+      "nom": "Startap kursi reklamasini chiqarish",
+      "sabab": "Startap kursi 42-darsiga yetdi, lekin a'zolar soni 19 ta. Reklama orqali yangi a'zolarni jalb qilish mumkin.",
       "amal": "post",
-      "matn": "Startap g'oyalari muhokamasi! Sizning startap g'oyangiz nima? Biz bilan baham ko'ring va o'z g'oyangizni baham ko'ring!",
+      "matn": "Startap kursi 42-darsiga yetdi! Siz ham startap asoschisi bo'lishni istaysizmi? Kursimizga qo'shiling!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "A'zolar faollashadi va o'z startap g'oyalari haqida baham ko'radilar.",
+      "kutilgan": "Yangi a'zolar kanalga qo'shiladi",
       "bajarildi": false
     }
   ],
