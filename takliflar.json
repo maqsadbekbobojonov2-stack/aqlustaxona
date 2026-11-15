@@ -1,42 +1,41 @@
 {
-  "sana": "2026-11-14",
-  "holat": "Kanal a'zolari: 20 ta\nKecha bilan farq: +0\nOxirgi hafta: +1 (kuniga o'rtacha +0.1)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni sekinlashib, kuniga o'rtacha +0.1 ga kamaydi. Shu sababdan, faollashtirish va jalb qilish vositalaridan foydalanish zarur. Takliflar kanalning o'sishini tezlashtirish va sifatli auditoriya jalb qilishga qaratilgan.",
+  "sana": "2026-11-15",
+  "holat": "Kanal a'zolari: 19 ta\nKecha bilan farq: -1\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
+  "tahlil": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan. Shu sababdan, kanalni faollashtirish va auditoriyani jalb qilishga qaratilgan takliflar kerak.",
   "takliflar": [
     {
-      "nom": "Qaysi bosqichdasiz",
-      "sabab": "Kanal a'zolari soni sekinlashib, kuniga o'rtacha +0.1 ga kamaydi. So'rovnoma orqali a'zolarni faollashtirish va ularning startap bosqichlarini bilish mumkin.",
+      "nom": "Kanalda nima qizib turibdi?",
+      "sabab": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan. Shu sababdan, kanalda nima qizib turibdi, deb bilish kerak.",
       "amal": "sorovnoma",
       "matn": "",
-      "savol": "Startapingiz hozir qaysi bosqichda?",
+      "savol": "Siz kanalda nima haqida o'qishni istaysiz?",
       "variantlar": [
-        "Hali faqat g'oya",
-        "MVP qilyapman",
-        "Birinchi mijoz bor",
-        "Sotuv bor, o'smoqchiman",
-        "Hozircha kuzatyapman"
+        "Startap g'oyalari",
+        "Biznes strategiyalari",
+        "Texnologiya yangiliklari",
+        "Boshqa"
       ],
-      "kutilgan": "A'zolar faollashadi va ularning startap bosqichlari aniq bo'ladi.",
-      "bajarildi": false
-    },
-    {
-      "nom": "Startap g'oyalari",
-      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi. Kanalga qo'shimcha jalb qiluvchi post chiqarish orqali a'zolarni jalb qilish mumkin.",
-      "amal": "post",
-      "matn": "Startap g'oyalari haqida bilmadigan narsalar. 1. Startap g'oyasini topish. 2. Startap g'oyasini ishlab chiqish. 3. Startap g'oyasini amalga oshirish.",
-      "savol": "",
-      "variantlar": [],
-      "kutilgan": "A'zolar soni ortadi va ular startap g'oyalari haqida bilib oladi.",
+      "kutilgan": "Kanalda qizib turibdi, deb bilish",
       "bajarildi": false
     },
     {
       "nom": "Bepul qo'llanma",
-      "sabab": "Bepul qo'llanma e'loni orqali odamlarni botga yozishga majbur qilish mumkin. Bepul qo'llanma startap g'oyalari haqida bo'lishi mumkin.",
+      "sabab": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan. Shu sababdan, bepul qo'llanma orqali auditoriyani jalb qilish kerak.",
       "amal": "post",
-      "matn": "Bepul startap g'oyalari qo'llanmasi. Qo'llanma startap g'oyasini topish, ishlab chiqish va amalga oshirish haqida bilim beradi. Botga yoziling va qo'llanmani oling.",
+      "matn": "Bepul startap g'oyalari qo'llanmasi! Botga yozing va o'zingizning startap g'oyangizni ishlab chiqing!",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Odamlar botga yoziladi va bepul qo'llanmani oladi.",
+      "kutilgan": "Auditoriya jalb qilinadi",
+      "bajarildi": false
+    },
+    {
+      "nom": "Rasm bilan post",
+      "sabab": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan. Shu sababdan, rasm bilan post orqali auditoriyani jalb qilish kerak.",
+      "amal": "rasm",
+      "matn": "Startap g'oyalari haqida o'qishni istaysizmi? Biz sizga eng yaxshi g'oyalarni taklif qilamiz!",
+      "savol": "3d isometric illustration of a small team celebrating first sale, warm light",
+      "variantlar": [],
+      "kutilgan": "Auditoriya jalb qilinadi",
       "bajarildi": false
     }
   ],
