@@ -1,11 +1,11 @@
 {
-  "sana": "2026-11-17",
+  "sana": "2026-11-18",
   "holat": "Kanal a'zolari: 19 ta\nKecha bilan farq: +0\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni 19 ta, o'sish tezligi sekinlashgan. Shu sababli, faollashtirish va jalb qilish vositalaridan foydalanish kerak.",
+  "tahlil": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan. Oxirgi hafta +0, eng yaxshi kun +4, eng yomon kun -3. Botga yozilganlar 4 ta. Shu sababdan, kanalni faollashtirish va yangi a'zolarni jalb qilish zarur.",
   "takliflar": [
     {
-      "nom": "Qaysi bosqichdasiz",
-      "sabab": "22 a'zoda kuniga o'rtacha +1 — bu juda kam. Kichik kanalda so'rovnoma eng arzon o'sish vositasi.",
+      "nom": "Startap bosqichi so'rovnomasi",
+      "sabab": "Kanal a'zolari soni sekin o'sib bormoqda, shuning uchun ularning startap bosqichini bilish va ularning ehtiyojlariga mos ravishda kontent tayyorlash zarur.",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "Kanal a'zolari sonining o'sishi",
+      "kutilgan": "Kanal a'zolari soni 10% o'sadi",
       "bajarildi": false
     },
     {
-      "nom": "Bepul startap qo'llanmasi",
-      "sabab": "Auditoriya startap g'oyalari haqida qizib turibdi. Bepul qo'llanma e'lon qilish orqali odamlarni jalb qilish mumkin.",
+      "nom": "Startap g'oyalari ro'yxati",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, shuning uchun kanalga qo'shimcha jalb qiluvchi post chiqarish zarur.",
       "amal": "post",
-      "matn": "Bepul startap qo'llanmasi! Startap g'oyalaringizni amalga oshirish uchun kerakli maslahatlar bilan tanishing. Botga yozing va o'zingizning startap g'oyangizni boshlang!",
+      "matn": "Startap g'oyalari ro'yxati:\n1. E-commerce platformasi\n2. Mobil ilovalar\n3. Bulutli xizmatlar\n4. Kiberxavfsizlik\n5. Sun'iy intellekt",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "Bepul qo'llanmani o'qigan odamlar sonining o'sishi",
+      "kutilgan": "Kanal a'zolari soni 5% o'sadi",
       "bajarildi": false
     },
     {
-      "nom": "Startap tendensiyalari",
-      "sabab": "O'zbekistonda startap tendensiyalari qizib turibdi. Muhokama posti orqali kanal a'zolarini jalb qilish mumkin.",
-      "amal": "post",
-      "matn": "Startap tendensiyalari haqida muhokama! O'zbekistonda startap sohasida nima tendensiyalar qizib turibdi? O'zingizning fikrlaringizni baham ko'ring!",
-      "savol": "",
+      "nom": "Qaysi tarmoqqa startap qilish kerak?",
+      "sabab": "Kanal a'zolari startap qilish uchun qaysi tarmoqni tanlashni bilishmoqda, shuning uchun kanalga qo'shimcha jalb qiluvchi post chiqarish zarur.",
+      "amal": "rasm",
+      "matn": "Qaysi tarmoqqa startap qilish kerak?",
+      "savol": "3d isometric illustration of a small team celebrating first sale, warm light",
       "variantlar": [],
-      "kutilgan": "Muhokama postiga javoblar sonining o'sishi",
+      "kutilgan": "Kanal a'zolari soni 3% o'sadi",
       "bajarildi": false
     }
   ],
