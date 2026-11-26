@@ -1,11 +1,11 @@
 {
-  "sana": "2026-11-24",
+  "sana": "2026-11-26",
   "holat": "Kanal a'zolari: 19 ta\nKecha bilan farq: +0\nOxirgi hafta: +0 (kuniga o'rtacha +0.0)\nEng yaxshi kun: 2026-10-17 (+4)\nEng yomon kun: 2026-09-01 (-3)\nBotga yozilganlar: 4 ta",
-  "tahlil": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan. Shu sababdan, faollashtirish vositalaridan foydalanish kerak. Auditoriya startap va biznes mavzulariga qiziqib turibdi.",
+  "tahlil": "Kanal a'zolari soni o'smagan, o'rtacha kuniga +0.0 a'zo qo'shildi. Eng yaxshi kun +4 a'zo qo'shildi, eng yomon kun -3 a'zo kamaydi. Shu sababli, kanalga faollashtiruvchi va jalb qiluvchi harakatlar kerak.",
   "takliflar": [
     {
-      "nom": "Startap bosqichlari so'rovnomasi",
-      "sabab": "Kanal a'zolari soni 19 ta, o'sish sekinlashgan. So'rovnoma orqali a'zolarning startap bosqichlarini bilib, kelgusi postlarni ularning ehtiyojlari asosida tayyorlash mumkin.",
+      "nom": "Qaysi bosqichdasiz",
+      "sabab": "Kanal a'zolari soni o'smagan, shuning uchun ularning qiziqishini bilish va ularning ehtiyojiga mos postlar chiqarish kerak. So'rovnoma orqali ularning startap bosqichlarini bilib, keyingi postlarni shu bosqichlarga moslashtirish mumkin.",
       "amal": "sorovnoma",
       "matn": "",
       "savol": "Startapingiz hozir qaysi bosqichda?",
@@ -16,27 +16,27 @@
         "Sotuv bor, o'smoqchiman",
         "Hozircha kuzatyapman"
       ],
-      "kutilgan": "A'zolarning startap bosqichlarini bilib, kelgusi postlarni ularning ehtiyojlari asosida tayyorlash",
+      "kutilgan": "Kanal a'zolarining startap bosqichlarini bilib, keyingi postlarni shu bosqichlarga moslashtirish",
       "bajarildi": false
     },
     {
-      "nom": "Startap g'oyalari uchun qo'llanma",
-      "sabab": "Auditoriya startap g'oyalari mavzusiga qiziqib turibdi. BEPUL PDF qo'llanma orqali a'zolarga startap g'oyalari uchun foydali maslahatlar berish mumkin.",
+      "nom": "Startap g'oyalari",
+      "sabab": "O'zbekistonda startap g'oyalari qizib turibdi, shuning uchun kanalga startap g'oyalari haqida post chiqarish kerak.",
       "amal": "post",
-      "matn": "Startap g'oyalari uchun qo'llanma\n\nAgar siz startap g'oyasi bilan qiziqsangiz, bizning bepul qo'llanmamizni yuklab oling! Qo'llanmada startap g'oyasi uchun kerakli bo'lgan asosiy bosqichlar haqida ma'lumot berilgan.",
+      "matn": "Startap g'oyalari haqida post: <b>Startap g'oyalari</b> - bu yangi biznes g'oyalari. Sizning startap g'oyangiz nima?",
       "savol": "",
       "variantlar": [],
-      "kutilgan": "A'zolarga startap g'oyalari uchun foydali maslahatlar berish",
+      "kutilgan": "Kanal a'zolarining startap g'oyalari haqida fikrlarini bilish",
       "bajarildi": false
     },
     {
-      "nom": "Startap kompaniyalari uchun imkoniyatlar",
-      "sabab": "O'zbekistonda startap kompaniyalari uchun imkoniyatlar mavzusi qizib turibdi. Rasm orqali a'zolarga startap kompaniyalari uchun imkoniyatlar haqida ma'lumot berish mumkin.",
-      "amal": "rasm",
-      "matn": "Startap kompaniyalari uchun imkoniyatlar",
-      "savol": "3d isometric illustration of a small team celebrating first sale, warm light",
+      "nom": "Reklama qanday quriladi",
+      "sabab": "Oxirgi chiqqan post mavzulari orasida «OG'ZAKI REKLAMA QANDAY QURILADI» mavzusi bor, shuning uchun reklama haqida qo'shimcha post chiqarish kerak.",
+      "amal": "post",
+      "matn": "Reklama haqida post: <b>Reklama qanday quriladi</b> - bu biznes uchun muhim savol. Reklama qurish uchun sizga qanday maslahatlar berish mumkin?",
+      "savol": "",
       "variantlar": [],
-      "kutilgan": "A'zolarga startap kompaniyalari uchun imkoniyatlar haqida ma'lumot berish",
+      "kutilgan": "Kanal a'zolarining reklama haqida fikrlarini bilish",
       "bajarildi": false
     }
   ],
